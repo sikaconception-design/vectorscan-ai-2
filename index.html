@@ -1132,6 +1132,9 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
         <div style="text-align:center;font-size:10px;color:rgba(39,51,43,.45);font-family:var(--font-mono)">
           Pas encore enregistré ? <span class="auth-link" onclick="switchAuthTab('register')">Créer un accès →</span>
         </div>
+        <div style="text-align:center;font-size:10px;color:rgba(39,51,43,.45);font-family:var(--font-mono);margin-top:6px">
+          Compte non confirmé ? <span class="auth-link" onclick="showOtpEmailEntry()">Recevoir un code →</span>
+        </div>
         <div class="auth-footer-note">
           <span><i class="fa fa-lock"></i> Local</span>
           <span><i class="fa fa-shield-alt"></i> Sécurisé</span>
@@ -1194,10 +1197,19 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
         <div class="auth-success" id="otp-success" style="display:none;text-align:center;font-size:11px;color:var(--accent);font-family:var(--font-mono);margin-bottom:14px;line-height:1.5;padding:10px;border:1px solid var(--accent);border-radius:8px">
           <i class="fa fa-check-circle"></i> <span id="otp-success-msg"></span>
         </div>
-        <div style="text-align:center;font-size:10.5px;color:rgba(39,51,43,.55);font-family:var(--font-mono);margin-bottom:16px;line-height:1.5">
+        <div style="text-align:center;font-size:10.5px;color:rgba(39,51,43,.55);font-family:var(--font-mono);margin-bottom:16px;line-height:1.5" id="otp-instructions">
           <i class="fa fa-envelope-open-text"></i> Un code à 6 chiffres a été envoyé à <b id="otp-target-email"></b>. Entrez-le ci-dessous pour activer votre compte (vérifiez aussi vos spams).
         </div>
-        <div class="auth-field">
+        <div class="auth-field" id="otp-email-field" style="display:none">
+          <label class="auth-label">Adresse e-mail du compte</label>
+          <div class="auth-input-wrap">
+            <i class="fa fa-envelope auth-input-icon"></i>
+            <input class="auth-input" id="otp-email-input" type="email" placeholder="ex : kyao@exemple.com" autocomplete="email">
+            <div class="auth-input-focus-bar"></div>
+          </div>
+        </div>
+        <button class="auth-submit" id="btn-otp-send" style="display:none" onclick="doSendOtpForExisting()"><i class="fa fa-paper-plane"></i> Recevoir un code</button>
+        <div class="auth-field" id="otp-code-field">
           <label class="auth-label">Code de vérification</label>
           <div class="auth-input-wrap">
             <i class="fa fa-key auth-input-icon"></i>
@@ -1208,6 +1220,9 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
         <button class="auth-submit" id="btn-otp-verify" onclick="doVerifyOtp()"><i class="fa fa-check"></i> Valider mon compte</button>
         <div style="text-align:center;font-size:10px;color:rgba(39,51,43,.45);font-family:var(--font-mono);margin-top:12px">
           Pas reçu de code ? <span class="auth-link" onclick="doResendOtp()">Renvoyer le code</span>
+        </div>
+        <div style="text-align:center;font-size:10px;color:rgba(39,51,43,.45);font-family:var(--font-mono);margin-top:6px">
+          <span class="auth-link" onclick="switchAuthTab('login')">← Retour à la connexion</span>
         </div>
       </div>
 
@@ -7338,6 +7353,45 @@ async function doResendOtp(){
   ok.style.display = '';
 }
 
+function showOtpEmailEntry(){
+  pendingOtpEmail = null; pendingOtpUser = null;
+  switchAuthTab('otp');
+  document.getElementById('otp-instructions').style.display = 'none';
+  document.getElementById('otp-email-field').style.display = '';
+  document.getElementById('otp-code-field').style.display = 'none';
+  document.getElementById('btn-otp-verify').style.display = 'none';
+  document.getElementById('btn-otp-send').style.display = '';
+  document.getElementById('otp-email-input').value = '';
+  document.getElementById('otp-error').classList.remove('show');
+  document.getElementById('otp-success').style.display = 'none';
+}
+
+async function doSendOtpForExisting(){
+  const email = (document.getElementById('otp-email-input').value || '').trim().toLowerCase();
+  const err = document.getElementById('otp-error');
+  const setErr = (m)=>{ document.getElementById('otp-error-msg').textContent = m; err.classList.add('show'); };
+  err.classList.remove('show');
+  if(!email || !isValidEmail(email)){ setErr('Veuillez saisir une adresse e-mail valide.'); return; }
+  if(!sb){ setErr('Supabase non configuré.'); return; }
+  setSubmitLoading('#btn-otp-send', true);
+  const { error } = await sb.auth.resend({ type:'signup', email });
+  setSubmitLoading('#btn-otp-send', false);
+  if(error){ setErr(translateSupabaseError(error.message)); return; }
+  const users = getUsers();
+  const matchKey = Object.keys(users).find(k => (users[k].email||'').toLowerCase() === email);
+  pendingOtpEmail = email;
+  pendingOtpUser = matchKey || null;
+  document.getElementById('otp-target-email').textContent = email;
+  document.getElementById('otp-instructions').style.display = '';
+  document.getElementById('otp-email-field').style.display = 'none';
+  document.getElementById('otp-code-field').style.display = '';
+  document.getElementById('btn-otp-verify').style.display = '';
+  document.getElementById('btn-otp-send').style.display = 'none';
+  document.getElementById('otp-code').value = '';
+  document.getElementById('otp-success-msg').textContent = 'Code envoyé — vérifiez votre boîte mail (et les spams).';
+  document.getElementById('otp-success').style.display = '';
+}
+
 async function doRegister(){
   const name  = document.getElementById('reg-name').value.trim();
   const user  = document.getElementById('reg-user').value.trim();
@@ -7397,6 +7451,12 @@ async function doRegister(){
     pendingOtpUser = user;
     document.getElementById('otp-target-email').textContent = email;
     document.getElementById('otp-code').value = '';
+    document.getElementById('otp-instructions').style.display = '';
+    document.getElementById('otp-email-field').style.display = 'none';
+    document.getElementById('otp-code-field').style.display = '';
+    document.getElementById('btn-otp-verify').style.display = '';
+    document.getElementById('btn-otp-send').style.display = 'none';
+    document.getElementById('otp-success').style.display = 'none';
     switchAuthTab('otp');
   } else {
     saveSession(user);
