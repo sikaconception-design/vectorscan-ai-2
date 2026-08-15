@@ -1188,6 +1188,29 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
         <button class="auth-submit" id="btn-reset-confirm" onclick="doSetNewPasswordFromRecovery()"><i class="fa fa-key"></i> Définir le nouveau mot de passe</button>
       </div>
 
+      <!-- EMAIL VERIFICATION CODE FORM (après inscription) -->
+      <div id="form-verify-otp" style="display:none">
+        <div class="auth-error" id="otp-error"><i class="fa fa-exclamation-triangle"></i> <span id="otp-error-msg"></span></div>
+        <div class="auth-success" id="otp-success" style="display:none;text-align:center;font-size:11px;color:var(--accent);font-family:var(--font-mono);margin-bottom:14px;line-height:1.5;padding:10px;border:1px solid var(--accent);border-radius:8px">
+          <i class="fa fa-check-circle"></i> <span id="otp-success-msg"></span>
+        </div>
+        <div style="text-align:center;font-size:10.5px;color:rgba(39,51,43,.55);font-family:var(--font-mono);margin-bottom:16px;line-height:1.5">
+          <i class="fa fa-envelope-open-text"></i> Un code à 6 chiffres a été envoyé à <b id="otp-target-email"></b>. Entrez-le ci-dessous pour activer votre compte (vérifiez aussi vos spams).
+        </div>
+        <div class="auth-field">
+          <label class="auth-label">Code de vérification</label>
+          <div class="auth-input-wrap">
+            <i class="fa fa-key auth-input-icon"></i>
+            <input class="auth-input" id="otp-code" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="123456" style="letter-spacing:.35em;text-align:center;font-size:18px" onkeydown="if(event.key==='Enter')doVerifyOtp()">
+            <div class="auth-input-focus-bar"></div>
+          </div>
+        </div>
+        <button class="auth-submit" id="btn-otp-verify" onclick="doVerifyOtp()"><i class="fa fa-check"></i> Valider mon compte</button>
+        <div style="text-align:center;font-size:10px;color:rgba(39,51,43,.45);font-family:var(--font-mono);margin-top:12px">
+          Pas reçu de code ? <span class="auth-link" onclick="doResendOtp()">Renvoyer le code</span>
+        </div>
+      </div>
+
       <!-- REGISTER FORM -->
       <div id="form-register" style="display:none">
         <div class="auth-error" id="register-error"><i class="fa fa-exclamation-triangle"></i> <span id="register-error-msg"></span></div>
@@ -7185,16 +7208,18 @@ function updateStrength(val){
 function switchAuthTab(tab){
   const isForgot = tab === 'forgot';
   const isReset = tab === 'reset';
+  const isOtp = tab === 'otp';
   const isLogin = tab === 'login';
   const isRegister = tab === 'register';
   const tabsRow = document.querySelector('.auth-tabs-row');
-  if(tabsRow) tabsRow.style.display = (isForgot||isReset) ? 'none' : '';
+  if(tabsRow) tabsRow.style.display = (isForgot||isReset||isOtp) ? 'none' : '';
   document.getElementById('tab-login').classList.toggle('active', isLogin);
   document.getElementById('tab-register').classList.toggle('active', isRegister);
   document.getElementById('form-login').style.display = isLogin ? '' : 'none';
   document.getElementById('form-register').style.display = isRegister ? '' : 'none';
   document.getElementById('form-forgot').style.display = isForgot ? '' : 'none';
   document.getElementById('form-reset-password').style.display = isReset ? '' : 'none';
+  document.getElementById('form-verify-otp').style.display = isOtp ? '' : 'none';
   document.getElementById('login-error').classList.remove('show');
   document.getElementById('register-error').classList.remove('show');
   const fErr = document.getElementById('forgot-error'); if(fErr) fErr.classList.remove('show');
@@ -7271,6 +7296,48 @@ async function doLogin(){
 
 function isValidEmail(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((v||'').trim()); }
 
+let pendingOtpEmail = null;
+let pendingOtpUser = null;
+
+async function doVerifyOtp(){
+  const code = document.getElementById('otp-code').value.trim();
+  const err  = document.getElementById('otp-error');
+  const setErr = (m)=>{ const s=document.getElementById('otp-error-msg'); if(s) s.textContent=m; err.classList.add('show'); };
+  err.classList.remove('show');
+  if(!code || code.length !== 6){ setErr('Veuillez saisir le code à 6 chiffres reçu par e-mail.'); return; }
+  if(!sb || !pendingOtpEmail){ setErr('Session de vérification expirée. Veuillez vous réinscrire.'); return; }
+  setSubmitLoading('#btn-otp-verify', true);
+  const { data, error } = await sb.auth.verifyOtp({ email: pendingOtpEmail, token: code, type: 'signup' });
+  setSubmitLoading('#btn-otp-verify', false);
+  if(error){ setErr(translateSupabaseError(error.message)); return; }
+  showToast('Compte vérifié — bienvenue sur VectorScan AI !', 's');
+  const user = pendingOtpUser;
+  const users = getUsers();
+  pendingOtpEmail = null; pendingOtpUser = null;
+  if(user && users[user]){
+    saveSession(user);
+    rememberId(user);
+    loadUserData();
+    applyRoleUI();
+    showApp(users[user].name || user, 'welcome');
+    if(users[user].role === 'admin' && users[user].referralCode){
+      setTimeout(()=>{ showToast(`Compte Administrateur — votre code de parrainage : ${users[user].referralCode}`, 's'); }, 900);
+    }
+  } else {
+    switchAuthTab('login');
+  }
+}
+
+async function doResendOtp(){
+  const ok = document.getElementById('otp-success');
+  const err = document.getElementById('otp-error'); err.classList.remove('show');
+  if(!sb || !pendingOtpEmail){ return; }
+  const { error } = await sb.auth.resend({ type:'signup', email: pendingOtpEmail });
+  if(error){ document.getElementById('otp-error-msg').textContent = translateSupabaseError(error.message); err.classList.add('show'); return; }
+  document.getElementById('otp-success-msg').textContent = 'Un nouveau code vient d\'être envoyé.';
+  ok.style.display = '';
+}
+
 async function doRegister(){
   const name  = document.getElementById('reg-name').value.trim();
   const user  = document.getElementById('reg-user').value.trim();
@@ -7325,10 +7392,12 @@ async function doRegister(){
   saveUsers(users);
   setSubmitLoading('#form-register .auth-submit', false);
   if(sb){
-    // Avec Supabase, le compte n'est actif qu'après confirmation de l'e-mail : pas de connexion auto.
-    switchAuthTab('login');
-    document.getElementById('login-user').value = user;
-    showToast('Compte créé ! Vérifiez votre boîte mail (et vos spams) pour confirmer votre adresse avant de vous connecter.', 's');
+    // Avec Supabase, le compte n'est actif qu'après saisie du code reçu par e-mail
+    pendingOtpEmail = email;
+    pendingOtpUser = user;
+    document.getElementById('otp-target-email').textContent = email;
+    document.getElementById('otp-code').value = '';
+    switchAuthTab('otp');
   } else {
     saveSession(user);
     rememberId(user);
