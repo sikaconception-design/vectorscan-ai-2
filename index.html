@@ -1198,7 +1198,7 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
           <i class="fa fa-check-circle"></i> <span id="otp-success-msg"></span>
         </div>
         <div style="text-align:center;font-size:10.5px;color:rgba(39,51,43,.55);font-family:var(--font-mono);margin-bottom:16px;line-height:1.5" id="otp-instructions">
-          <i class="fa fa-envelope-open-text"></i> Un code à 6 chiffres a été envoyé à <b id="otp-target-email"></b>. Entrez-le ci-dessous pour activer votre compte (vérifiez aussi vos spams).
+          <i class="fa fa-envelope-open-text"></i> Un code de vérification a été envoyé à <b id="otp-target-email"></b>. Entrez-le ci-dessous pour activer votre compte (vérifiez aussi vos spams).
         </div>
         <div class="auth-field" id="otp-email-field" style="display:none">
           <label class="auth-label">Adresse e-mail du compte</label>
@@ -1213,7 +1213,7 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
           <label class="auth-label">Code de vérification</label>
           <div class="auth-input-wrap">
             <i class="fa fa-key auth-input-icon"></i>
-            <input class="auth-input" id="otp-code" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="123456" style="letter-spacing:.35em;text-align:center;font-size:18px" onkeydown="if(event.key==='Enter')doVerifyOtp()">
+            <input class="auth-input" id="otp-code" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="10" placeholder="Code reçu par e-mail" style="letter-spacing:.25em;text-align:center;font-size:18px" onkeydown="if(event.key==='Enter')doVerifyOtp()">
             <div class="auth-input-focus-bar"></div>
           </div>
         </div>
@@ -7319,7 +7319,7 @@ async function doVerifyOtp(){
   const err  = document.getElementById('otp-error');
   const setErr = (m)=>{ const s=document.getElementById('otp-error-msg'); if(s) s.textContent=m; err.classList.add('show'); };
   err.classList.remove('show');
-  if(!code || code.length !== 6){ setErr('Veuillez saisir le code à 6 chiffres reçu par e-mail.'); return; }
+  if(!code || code.length < 6 || code.length > 10){ setErr('Veuillez saisir le code complet reçu par e-mail.'); return; }
   if(!sb || !pendingOtpEmail){ setErr('Session de vérification expirée. Veuillez vous réinscrire.'); return; }
   setSubmitLoading('#btn-otp-verify', true);
   const { data, error } = await sb.auth.verifyOtp({ email: pendingOtpEmail, token: code, type: 'signup' });
@@ -7446,18 +7446,10 @@ async function doRegister(){
   saveUsers(users);
   setSubmitLoading('#form-register .auth-submit', false);
   if(sb){
-    // Avec Supabase, le compte n'est actif qu'après saisie du code reçu par e-mail
-    pendingOtpEmail = email;
-    pendingOtpUser = user;
-    document.getElementById('otp-target-email').textContent = email;
-    document.getElementById('otp-code').value = '';
-    document.getElementById('otp-instructions').style.display = '';
-    document.getElementById('otp-email-field').style.display = 'none';
-    document.getElementById('otp-code-field').style.display = '';
-    document.getElementById('btn-otp-verify').style.display = '';
-    document.getElementById('btn-otp-send').style.display = 'none';
-    document.getElementById('otp-success').style.display = 'none';
-    switchAuthTab('otp');
+    // Comme sur Le Grin : Supabase envoie directement un lien de confirmation par e-mail (SMTP intégré Supabase)
+    switchAuthTab('login');
+    document.getElementById('login-user').value = user;
+    showToast('Compte créé ! Cliquez sur le lien reçu par e-mail (vérifiez aussi vos spams) pour l\'activer.', 's');
   } else {
     saveSession(user);
     rememberId(user);
