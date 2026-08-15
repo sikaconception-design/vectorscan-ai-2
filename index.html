@@ -609,24 +609,49 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 ::-webkit-scrollbar-thumb:hover{background:var(--muted)}
 
-/* MOBILE BOTTOM NAV */
-.mobile-nav{
-  display:none;
-  position:fixed;bottom:0;left:0;right:0;z-index:100;
-  background:rgba(255,255,255,.96);backdrop-filter:blur(12px);
-  border-top:1px solid var(--border);
-  padding:8px 0 max(8px,env(safe-area-inset-bottom));
+/* MOBILE VERTICAL SLIDE MENU */
+.mobile-menu-btn{
+  display:none;position:fixed;left:16px;bottom:16px;z-index:150;
+  width:52px;height:52px;border-radius:50%;border:none;
+  background:var(--accent);color:#fff;font-size:20px;cursor:pointer;
+  box-shadow:0 6px 20px rgba(0,232,122,.4);align-items:center;justify-content:center;
 }
-.mobile-nav-tabs{display:flex;justify-content:flex-start;width:100%;overflow-x:auto;overflow-y:hidden;
-  -webkit-overflow-scrolling:touch;scroll-snap-type:x proximity;scrollbar-width:thin;padding:0 4px 2px;gap:2px}
-.mobile-nav-tabs::-webkit-scrollbar{height:4px}
-.mobile-nav-tabs::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
-.mobile-nav-tab{display:flex;flex-direction:column;align-items:center;gap:3px;flex:0 0 auto;scroll-snap-align:center;
-  padding:6px 10px;border:none;background:transparent;color:var(--muted);cursor:pointer;
-  font-family:var(--font-head);font-size:9px;font-weight:600;min-width:52px;white-space:nowrap;
-  border-radius:8px;transition:all .2s}
-.mobile-nav-tab i{font-size:18px}
-.mobile-nav-tab.active,.mobile-nav-tab:hover{color:var(--accent);background:rgba(0,232,122,.1)}
+.mobile-menu-overlay{
+  display:none;position:fixed;inset:0;z-index:200;background:rgba(10,14,12,.5);
+}
+.mobile-menu-overlay.open{display:block}
+.mobile-menu-panel{
+  position:fixed;top:0;left:0;bottom:0;width:78%;max-width:320px;
+  background:var(--card);box-shadow:4px 0 30px rgba(0,0,0,.25);
+  display:flex;flex-direction:column;
+  transform:translateX(-105%);transition:transform .28s cubic-bezier(.22,1,.36,1);
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.mobile-menu-overlay.open .mobile-menu-panel{transform:translateX(0)}
+.mobile-menu-header{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:18px 16px;border-bottom:1px solid var(--border)}
+.mobile-menu-user{display:flex;align-items:center;gap:10px;min-width:0}
+.mobile-menu-avatar{width:38px;height:38px;border-radius:50%;background:rgba(0,232,122,.12);color:var(--accent);
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;
+  border:1px solid rgba(0,232,122,.3)}
+.mobile-menu-username{font-family:var(--font-head);font-weight:700;font-size:13px;color:var(--text);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px}
+.mobile-menu-role{font-family:var(--font-mono);font-size:10px;color:var(--muted);text-transform:uppercase}
+.mobile-menu-close{border:none;background:transparent;color:var(--muted);font-size:16px;cursor:pointer;padding:6px}
+.mobile-menu-list{display:flex;flex-direction:column;overflow-y:auto;flex:1;padding:8px}
+.mobile-menu-item{display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+  padding:13px 12px;border:none;background:transparent;border-radius:10px;cursor:pointer;
+  font-family:var(--font-head);font-size:13px;font-weight:600;color:var(--text);}
+.mobile-menu-item i{width:20px;text-align:center;font-size:15px;color:var(--muted)}
+.mobile-menu-item.active{background:rgba(0,232,122,.12);color:var(--accent)}
+.mobile-menu-item.active i{color:var(--accent)}
+.mobile-menu-item span:first-of-type{flex:1}
+.mobile-menu-item .chat-badge{position:static;margin-left:auto}
+.mobile-menu-divider{height:1px;background:var(--border);margin:8px 6px}
+.mobile-menu-lang-badge{font-family:var(--font-mono);font-size:10px;color:var(--muted);background:var(--bg);
+  padding:2px 8px;border-radius:6px}
+.mobile-menu-logout{color:var(--danger)}
+.mobile-menu-logout i{color:var(--danger)}
 
 /* ========================
    RESPONSIVE MOBILE
@@ -636,7 +661,7 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
   .nav-logo{font-size:13px}
   .nav-tabs{display:none}
   .nav-stat{display:none}
-  main{padding:68px 12px 100px}
+  main{padding:68px 12px 90px}
   .scanner-hero{grid-template-columns:1fr;gap:14px}
   .scan-frame{width:220px;height:220px}
   .info-grid{grid-template-columns:1fr 1fr}
@@ -653,11 +678,11 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
   .db-grid{grid-template-columns:1fr}
   .chat-area{margin-top:10px}
   #map-container{height:300px}
-  /* Bottom navigation mobile */
-  .mobile-nav{display:flex;position:relative}
-  .mobile-nav::after{content:'';position:absolute;top:0;right:0;bottom:0;width:18px;pointer-events:none;
-    background:linear-gradient(90deg,transparent,rgba(255,255,255,.9));}
+  /* Menu vertical mobile */
+  .mobile-menu-btn{display:flex}
+  #nav-right-group{display:none}
 }
+
 @media(max-width:480px){
   .scanner-hero{gap:12px}
   .scan-actions{gap:6px;padding:12px}
@@ -1368,7 +1393,7 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
     <button class="nav-tab" id="nav-tab-profile" onclick="showSection('profile',this)"><i class="fa fa-id-card"></i> Mon profil</button>
     <button class="nav-tab role-admin-only" id="nav-tab-users" style="display:none" onclick="showSection('users',this)"><i class="fa fa-user-shield"></i> Utilisateurs</button>
   </div>
-  <div style="display:flex;align-items:center;gap:16px;flex-shrink:0">
+  <div style="display:flex;align-items:center;gap:16px;flex-shrink:0" id="nav-right-group">
     <div class="nav-stat"><i class="fa fa-bug"></i> Fiches : <span id="count-nav">0</span></div>
     <div class="lang-switcher" data-no-i18n="1">
       <select id="nav-lang-select" onchange="setAppLanguage(this.value)" title="Langue / Language" aria-label="Langue de l'application">
@@ -1391,22 +1416,52 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
 <!-- OFFLINE BANNER -->
 <div class="offline-banner" id="offline-banner"><i class="fa fa-wifi-slash"></i> &nbsp;Mode hors-ligne — certaines fonctions sont limitées. Les fiches sont sauvegardées localement.</div>
 
-<!-- MOBILE BOTTOM NAV -->
-<div class="mobile-nav">
-  <div class="mobile-nav-tabs">
-    <button class="mobile-nav-tab active" onclick="showSection('scan',this)"><i class="fa fa-qrcode"></i>Scanner</button>
-    <button class="mobile-nav-tab" onclick="showSection('collection',this)"><i class="fa fa-layer-group"></i>Collection</button>
-    <button class="mobile-nav-tab" onclick="showSection('database',this)"><i class="fa fa-database"></i>Base</button>
-    <button class="mobile-nav-tab" onclick="showSection('map',this)"><i class="fa fa-map-marked-alt"></i>Carte</button>
-    <button class="mobile-nav-tab" onclick="showSection('stats',this)"><i class="fa fa-chart-line"></i>Stats</button>
-    <button class="mobile-nav-tab" onclick="showSection('socio',this)"><i class="fa fa-users"></i>Socio</button>
-    <button class="mobile-nav-tab" id="mobile-nav-tab-chat" onclick="showSection('chat',this)"><i class="fa fa-comments"></i>Messages<span class="chat-badge" id="chat-badge-mobile" style="display:none">0</span></button>
-    <button class="mobile-nav-tab" id="mobile-nav-tab-profile" onclick="showSection('profile',this)"><i class="fa fa-id-card"></i>Profil</button>
-    <button class="mobile-nav-tab role-admin-only" id="mobile-nav-tab-users" style="display:none" onclick="showSection('users',this)"><i class="fa fa-user-shield"></i>Rôles</button>
+<!-- MOBILE MENU BUTTON (déclenche le panneau vertical coulissant) -->
+<button class="mobile-menu-btn" id="mobile-menu-btn" onclick="openMobileMenu()">
+  <i class="fa fa-bars"></i>
+</button>
+
+<!-- MOBILE VERTICAL SLIDE MENU -->
+<div class="mobile-menu-overlay" id="mobile-menu-overlay" onclick="if(event.target===this)closeMobileMenu()">
+  <div class="mobile-menu-panel" id="mobile-menu-panel">
+    <div class="mobile-menu-header">
+      <div class="mobile-menu-user">
+        <div class="mobile-menu-avatar" id="mobile-menu-avatar">--</div>
+        <div>
+          <div class="mobile-menu-username" id="mobile-menu-username">—</div>
+          <div class="mobile-menu-role" id="mobile-menu-role"></div>
+        </div>
+      </div>
+      <button class="mobile-menu-close" onclick="closeMobileMenu()"><i class="fa fa-times"></i></button>
+    </div>
+    <div class="mobile-menu-list">
+      <button class="mobile-menu-item active" onclick="showSection('scan',this);closeMobileMenu()"><i class="fa fa-qrcode"></i><span>Scanner</span></button>
+      <button class="mobile-menu-item" onclick="showSection('collection',this);closeMobileMenu()"><i class="fa fa-layer-group"></i><span>Collection</span></button>
+      <button class="mobile-menu-item" onclick="showSection('database',this);closeMobileMenu()"><i class="fa fa-database"></i><span>Base de données</span></button>
+      <button class="mobile-menu-item" onclick="showSection('map',this);closeMobileMenu()"><i class="fa fa-map-marked-alt"></i><span>Carte GPS</span></button>
+      <button class="mobile-menu-item" onclick="showSection('stats',this);closeMobileMenu()"><i class="fa fa-chart-line"></i><span>Statistiques</span></button>
+      <button class="mobile-menu-item" onclick="showSection('socio',this);closeMobileMenu()"><i class="fa fa-users"></i><span>Socio-Anthropo</span></button>
+      <button class="mobile-menu-item" id="mobile-menu-item-chat" onclick="showSection('chat',this);closeMobileMenu()"><i class="fa fa-comments"></i><span>Messages</span><span class="chat-badge" id="chat-badge-mobile" style="display:none">0</span></button>
+      <button class="mobile-menu-item" id="mobile-menu-item-profile" onclick="showSection('profile',this);closeMobileMenu()"><i class="fa fa-id-card"></i><span>Mon profil</span></button>
+      <button class="mobile-menu-item role-admin-only" id="mobile-menu-item-users" style="display:none" onclick="showSection('users',this);closeMobileMenu()"><i class="fa fa-user-shield"></i><span>Utilisateurs</span></button>
+      <div class="mobile-menu-divider"></div>
+      <div class="mobile-menu-item" style="cursor:default">
+        <i class="fa fa-globe"></i><span>Langue</span>
+        <select id="mobile-menu-lang-select" onchange="setAppLanguage(this.value)" style="margin-left:auto;font-family:var(--font-mono);font-size:11px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:4px 6px;color:var(--text)">
+          <option value="fr">🇫🇷 FR</option>
+          <option value="en">🇬🇧 EN</option>
+          <option value="es">🇪🇸 ES</option>
+          <option value="pt">🇵🇹 PT</option>
+          <option value="ar">🇸🇦 AR</option>
+        </select>
+      </div>
+      <button class="mobile-menu-item mobile-menu-logout" onclick="closeMobileMenu();doLogout()"><i class="fa fa-sign-out-alt"></i><span>Déconnexion</span></button>
+    </div>
   </div>
 </div>
 
 <main>
+
 <!-- ============ SCANNER ============ -->
 <section class="section active" id="sec-scan">
   <div class="sec-head">
@@ -2390,12 +2445,12 @@ function showSection(id, btn) {
     const map = {scan:'Scanner',collection:'Collection',database:'Base',map:'Carte',stats:'Stat',socio:'Socio',chat:'Messages',profile:'profil',users:'Utilisateurs'};
     if(t.textContent.includes(map[id]||id)) t.classList.add('active');
   });
-  // Sync mobile nav
-  document.querySelectorAll('.mobile-nav-tab').forEach(t=>t.classList.remove('active'));
+  // Sync mobile menu vertical
+  document.querySelectorAll('.mobile-menu-item').forEach(t=>t.classList.remove('active'));
   const mobileIdxMap={scan:0,collection:1,database:2,map:3,stats:4,socio:5,chat:6,profile:7,users:8};
   const mIdx=mobileIdxMap[id];
-  const mobileTabs=document.querySelectorAll('.mobile-nav-tab');
-  if(mIdx!==undefined && mobileTabs[mIdx]) mobileTabs[mIdx].classList.add('active');
+  const mobileItems=document.querySelectorAll('.mobile-menu-item');
+  if(mIdx!==undefined && mobileItems[mIdx]) mobileItems[mIdx].classList.add('active');
   // Render section content
   if(id==='collection') renderCollection();
   if(id==='database') renderDB();
@@ -6625,6 +6680,35 @@ function applyRoleUI(){
     badge.className='nav-role-badge role-'+role;
   }
   document.querySelectorAll('.role-admin-only').forEach(el=>{ el.style.display = role==='admin' ? '' : 'none'; });
+  syncMobileMenuUser();
+}
+
+// Synchronise l'avatar/nom/rôle affichés dans le menu vertical mobile avec la barre du haut
+function syncMobileMenuUser(){
+  const me = getSession();
+  const users = getUsers();
+  const avEl = document.getElementById('mobile-menu-avatar');
+  const nameEl = document.getElementById('mobile-menu-username');
+  const roleEl = document.getElementById('mobile-menu-role');
+  if(!avEl || !me || !users[me]) return;
+  const u = users[me];
+  avEl.innerHTML = u.avatarPhoto ? `<img src="${u.avatarPhoto}" alt="Avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` : nameInitials(u.name||me);
+  if(nameEl) nameEl.textContent = u.name || me;
+  const role = getCurrentUserRole();
+  if(roleEl) roleEl.textContent = ROLE_LABELS[role] || role;
+}
+
+function openMobileMenu(){
+  syncMobileMenuUser();
+  const langSel = document.getElementById('nav-lang-select');
+  const mLangSel = document.getElementById('mobile-menu-lang-select');
+  if(mLangSel && langSel) mLangSel.value = langSel.value || 'fr';
+  document.getElementById('mobile-menu-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeMobileMenu(){
+  document.getElementById('mobile-menu-overlay').classList.remove('open');
+  document.body.style.overflow = '';
 }
 
 // ── Profil personnel (nom, date de naissance, ville, niveau d'étude) ──
@@ -8719,7 +8803,7 @@ function applyI18n(){
   document.documentElement.setAttribute('lang', lang);
   document.documentElement.setAttribute('dir', lang==='ar' ? 'rtl' : 'ltr');
   // Language selectors always stay in their own script/LTR presentation
-  ['nav-lang-select','auth-lang-select'].forEach(id=>{
+  ['nav-lang-select','auth-lang-select','mobile-menu-lang-select'].forEach(id=>{
     const el=document.getElementById(id); if(el){ el.value=lang; el.setAttribute('dir','ltr'); }
   });
 }
