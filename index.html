@@ -606,6 +606,25 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 ::-webkit-scrollbar-thumb:hover{background:var(--muted)}
 
+/* MOBILE BOTTOM NAV */
+.mobile-nav{
+  display:none;
+  position:fixed;bottom:0;left:0;right:0;z-index:100;
+  background:rgba(255,255,255,.96);backdrop-filter:blur(12px);
+  border-top:1px solid var(--border);
+  padding:8px 0 max(8px,env(safe-area-inset-bottom));
+}
+.mobile-nav-tabs{display:flex;justify-content:flex-start;width:100%;overflow-x:auto;overflow-y:hidden;
+  -webkit-overflow-scrolling:touch;scroll-snap-type:x proximity;scrollbar-width:thin;padding:0 4px 2px;gap:2px}
+.mobile-nav-tabs::-webkit-scrollbar{height:4px}
+.mobile-nav-tabs::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.mobile-nav-tab{display:flex;flex-direction:column;align-items:center;gap:3px;flex:0 0 auto;scroll-snap-align:center;
+  padding:6px 10px;border:none;background:transparent;color:var(--muted);cursor:pointer;
+  font-family:var(--font-head);font-size:9px;font-weight:600;min-width:52px;white-space:nowrap;
+  border-radius:8px;transition:all .2s}
+.mobile-nav-tab i{font-size:18px}
+.mobile-nav-tab.active,.mobile-nav-tab:hover{color:var(--accent);background:rgba(0,232,122,.1)}
+
 /* ========================
    RESPONSIVE MOBILE
    ======================== */
@@ -632,7 +651,9 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
   .chat-area{margin-top:10px}
   #map-container{height:300px}
   /* Bottom navigation mobile */
-  .mobile-nav{display:flex}
+  .mobile-nav{display:flex;position:relative}
+  .mobile-nav::after{content:'';position:absolute;top:0;right:0;bottom:0;width:18px;pointer-events:none;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.9));}
 }
 @media(max-width:480px){
   .scanner-hero{gap:12px}
@@ -642,31 +663,6 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
   .ai-content{padding:12px}
   .fiche-modal{border-radius:12px}
   .fiche-body{padding:16px}
-}
-
-/* MOBILE BOTTOM NAV */
-.mobile-nav{
-  display:none;
-  position:fixed;bottom:0;left:0;right:0;z-index:100;
-  background:rgba(255,255,255,.96);backdrop-filter:blur(12px);
-  border-top:1px solid var(--border);
-  padding:8px 0 max(8px,env(safe-area-inset-bottom));
-}
-.mobile-nav-tabs{display:flex;justify-content:flex-start;width:100%;overflow-x:auto;overflow-y:hidden;
-  -webkit-overflow-scrolling:touch;scroll-snap-type:x proximity;scrollbar-width:thin;padding:0 4px 2px;gap:2px}
-.mobile-nav-tabs::-webkit-scrollbar{height:4px}
-.mobile-nav-tabs::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
-.mobile-nav-tab{display:flex;flex-direction:column;align-items:center;gap:3px;flex:0 0 auto;scroll-snap-align:center;
-  padding:6px 10px;border:none;background:transparent;color:var(--muted);cursor:pointer;
-  font-family:var(--font-head);font-size:9px;font-weight:600;min-width:52px;white-space:nowrap;
-  border-radius:8px;transition:all .2s}
-.mobile-nav-tab i{font-size:18px}
-.mobile-nav-tab.active,.mobile-nav-tab:hover{color:var(--accent);background:rgba(0,232,122,.1)}
-/* Petit indicateur visuel : la barre se scrolle horizontalement sur mobile */
-@media(max-width:768px){
-  .mobile-nav{position:relative}
-  .mobile-nav::after{content:'';position:absolute;top:0;right:0;bottom:0;width:18px;pointer-events:none;
-    background:linear-gradient(90deg,transparent,rgba(255,255,255,.9));}
 }
 
 /* OFFLINE BANNER */
