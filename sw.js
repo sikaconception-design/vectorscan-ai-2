@@ -1,5 +1,6 @@
-// Service Worker VectorScan AI — mise en cache pour un fonctionnement hors-ligne
-const CACHE_NAME = 'vectorscan-ai-v1';
+// Service Worker VectorScan AI — mise en cache hors-ligne + détection de nouvelle version
+const APP_VERSION = 'v11.24';
+const CACHE_NAME = 'vectorscan-ai-' + APP_VERSION;
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -13,7 +14,8 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(CORE_ASSETS)).catch(()=>{})
   );
-  self.skipWaiting();
+  // On n'active PAS tout de suite : on attend que l'utilisateur confirme la mise à jour
+  // (voir le message SKIP_WAITING envoyé par index.html après clic sur "Mettre à jour")
 });
 
 self.addEventListener('activate', (event) => {
@@ -23,6 +25,13 @@ self.addEventListener('activate', (event) => {
     )
   );
   self.clients.claim();
+});
+
+// Permet à la page de déclencher l'activation immédiate de la nouvelle version
+self.addEventListener('message', (event) => {
+  if (event.data === 'SKIP_WAITING' || event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 // Stratégie : réseau d'abord, secours sur le cache si hors-ligne (garde l'app à jour quand connecté)
