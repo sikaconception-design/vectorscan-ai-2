@@ -1,5 +1,5 @@
 // Service Worker VectorScan AI — mise en cache hors-ligne + détection de nouvelle version
-const APP_VERSION = 'v11.28';
+const APP_VERSION = 'v11.29';
 const CACHE_NAME = 'vectorscan-ai-' + APP_VERSION;
 const CORE_ASSETS = [
   './',
