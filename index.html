@@ -559,6 +559,8 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
   cursor:pointer;text-align:left;white-space:nowrap;transition:background .12s}
 .vs-bm-btn:hover{background:#e8f0ff}
 .vs-bm-btn.active{background:#1a1a2e;color:#fff}
+/* Boutons de bascule légende/cartouche — mobile uniquement */
+.vs-map-mobile-toggle{display:none}
 /* Marqueur neutre placeholder */
 .map-placeholder{text-align:center;color:var(--muted);font-family:var(--font-mono);font-size:13px}
 /* Export bar */
@@ -677,7 +679,19 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
   .sec-head h1{font-size:22px}
   .db-grid{grid-template-columns:1fr}
   .chat-area{margin-top:10px}
-  #map-container{height:300px}
+  #map-container{height:340px}
+  /* Légende & cartouche repliés par défaut sur mobile, pour ne pas cacher la carte */
+  #vs-map-legend,#vs-cartouche{display:none!important}
+  #vs-map-legend.vs-mobile-open,#vs-cartouche.vs-mobile-open{
+    display:block!important;position:absolute;left:8px;right:8px;bottom:8px;top:8px;
+    width:auto;max-width:none;min-width:0;max-height:none;overflow-y:auto;z-index:970}
+  .vs-map-mobile-toggle{
+    display:flex!important;align-items:center;gap:5px;position:absolute;bottom:10px;left:10px;z-index:960;
+    background:rgba(26,26,46,.92);color:#fff;border:none;border-radius:20px;
+    padding:7px 12px;font-size:10.5px;font-family:var(--font-head);font-weight:600;cursor:pointer}
+  .vs-map-mobile-toggle i{font-size:11px}
+  /* Masque les éléments non essentiels sur la petite carte mobile pour garder la lisibilité */
+  #vs-bm-panel{top:auto;bottom:56px;left:8px;transform:scale(.85);transform-origin:bottom left}
   /* Menu vertical mobile */
   .mobile-menu-btn{display:flex}
   #nav-right-group{display:none}
@@ -1913,6 +1927,9 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
       <div class="leg-title">Légende</div>
       <div class="leg-body" id="vs-leg-body"></div>
     </div>
+    <!-- Boutons de bascule (mobile uniquement) : évitent que le cartouche et la légende cachent la carte -->
+    <button class="vs-map-mobile-toggle" id="vs-toggle-legend-btn" onclick="vsToggleMapPanel('legend')"><i class="fa fa-list"></i> Légende</button>
+    <button class="vs-map-mobile-toggle" id="vs-toggle-cartouche-btn" style="right:12px;left:auto" onclick="vsToggleMapPanel('cartouche')"><i class="fa fa-info-circle"></i> Référence</button>
   </div>
   <h3 style="font-size:15px;font-weight:700;margin-bottom:12px">Observations géolocalisées</h3>
   <div id="obs-list" style="display:flex;flex-direction:column;gap:10px">
@@ -2585,6 +2602,28 @@ function vsUpdateScaleAndCartouche(){
   // Fond de carte dans cartouche
   const bmLabels={osm:'© OSM',topo:'© OpenTopo',sat:'© ESRI',carto:'© CartoDB'};
   if(el('vc-bm')) el('vc-bm').textContent=bmLabels[_vsCurrentBasemap]||'© OSM';
+}
+
+// ── Bascule légende/cartouche sur mobile (pour ne pas cacher la carte) ──
+function vsToggleMapPanel(which){
+  const ids = which==='legend' ? ['vs-map-legend','vs-cartouche'] : ['vs-cartouche','vs-map-legend'];
+  const target = document.getElementById(ids[0]);
+  const other = document.getElementById(ids[1]);
+  if(!target) return;
+  const isOpen = target.classList.contains('vs-mobile-open');
+  other?.classList.remove('vs-mobile-open');
+  target.classList.toggle('vs-mobile-open', !isOpen);
+  // Ajoute un bouton de fermeture temporaire si absent
+  if(!isOpen){
+    if(!target.querySelector('.vs-mobile-close')){
+      const closeBtn=document.createElement('button');
+      closeBtn.className='vs-mobile-close';
+      closeBtn.innerHTML='<i class="fa fa-times"></i>';
+      closeBtn.style.cssText='position:sticky;top:0;float:right;background:#1a1a2e;color:#fff;border:none;border-radius:50%;width:26px;height:26px;font-size:12px;cursor:pointer;margin:6px;z-index:10';
+      closeBtn.onclick=(e)=>{e.stopPropagation();target.classList.remove('vs-mobile-open');};
+      target.insertBefore(closeBtn, target.firstChild);
+    }
+  }
 }
 
 // ── Sélecteur de fond de carte ──
