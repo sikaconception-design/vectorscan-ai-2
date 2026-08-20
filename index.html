@@ -565,6 +565,25 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
 .map-placeholder{text-align:center;color:var(--muted);font-family:var(--font-mono);font-size:13px}
 /* Export bar */
 .vs-export-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+/* Barre de style de carte (cercles/zones de vulnérabilité) */
+.vs-risk-toolbar{display:flex;gap:20px;flex-wrap:wrap;align-items:center;
+  background:var(--card);border:1px solid var(--border);border-radius:var(--r);
+  padding:12px 16px;margin-bottom:14px}
+.vs-risk-toolbar-group{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.vs-risk-toolbar-label{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
+.vs-risk-mode-btns{display:flex;gap:6px;flex-wrap:wrap}
+.vs-risk-mode-btn{display:flex;align-items:center;gap:6px;padding:7px 13px;border-radius:20px;
+  border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;
+  font-family:var(--font-head);font-size:11.5px;font-weight:600;transition:all .15s}
+.vs-risk-mode-btn:hover{border-color:var(--accent);color:var(--accent)}
+.vs-risk-mode-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+#vs-risk-basis-select{font-family:var(--font-mono);font-size:11.5px;padding:6px 10px;
+  border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text)}
+@media(max-width:768px){
+  .vs-risk-toolbar{padding:10px 12px;gap:12px}
+  .vs-risk-mode-btn{font-size:10px;padding:6px 10px}
+}
 
 /* STATS */
 .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
@@ -683,11 +702,17 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
   /* Légende & cartouche repliés par défaut sur mobile, pour ne pas cacher la carte */
   #vs-map-legend,#vs-cartouche{display:none!important}
   #vs-map-legend.vs-mobile-open,#vs-cartouche.vs-mobile-open{
-    display:block!important;position:absolute;left:8px;right:8px;bottom:8px;top:8px;
-    width:auto;max-width:none;min-width:0;max-height:none;overflow-y:auto;z-index:970}
+    display:block!important;position:absolute;z-index:970;
+    pointer-events:auto!important;
+    width:auto;min-width:150px;max-width:72%;max-height:70%;overflow-y:auto;
+    box-shadow:0 6px 24px rgba(0,0,0,.45)}
+  #vs-map-legend.vs-mobile-open{bottom:50px;left:8px}
+  #vs-cartouche.vs-mobile-open{bottom:50px;right:8px}
+  .vs-mobile-close{pointer-events:auto!important}
   .vs-map-mobile-toggle{
     display:flex!important;align-items:center;gap:5px;position:absolute;bottom:10px;left:10px;z-index:960;
     background:rgba(26,26,46,.92);color:#fff;border:none;border-radius:20px;
+    pointer-events:auto!important;
     padding:7px 12px;font-size:10.5px;font-family:var(--font-head);font-weight:600;cursor:pointer}
   .vs-map-mobile-toggle i{font-size:11px}
   /* Masque les éléments non essentiels sur la petite carte mobile pour garder la lisibilité */
@@ -1804,6 +1829,23 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
     <button class="btn btn-secondary" onclick="exportMapToPDF()"><i class="fa fa-file-pdf"></i>&nbsp;Exporter PDF</button>
     <button class="btn btn-secondary" onclick="exportMapToWord()"><i class="fa fa-file-word"></i>&nbsp;Exporter Word</button>
   </div>
+  <div class="vs-risk-toolbar">
+    <div class="vs-risk-toolbar-group">
+      <span class="vs-risk-toolbar-label">Style de carte</span>
+      <div class="vs-risk-mode-btns">
+        <button class="vs-risk-mode-btn active" data-mode="standard" onclick="vsSetMapMode('standard')"><i class="fa fa-map-pin"></i> Standard</button>
+        <button class="vs-risk-mode-btn" data-mode="circles" onclick="vsSetMapMode('circles')"><i class="fa fa-bullseye"></i> Cercles de vulnérabilité</button>
+        <button class="vs-risk-mode-btn" data-mode="zones" onclick="vsSetMapMode('zones')"><i class="fa fa-layer-group"></i> Zones de risque</button>
+      </div>
+    </div>
+    <div class="vs-risk-toolbar-group" id="vs-risk-basis-group" style="display:none">
+      <span class="vs-risk-toolbar-label">Base du score</span>
+      <select id="vs-risk-basis-select" onchange="vsSetRiskBasis(this.value)">
+        <option value="auto">Automatique — % de gîtes positifs</option>
+        <option value="manual">Manuel — score que je saisis par site</option>
+      </select>
+    </div>
+  </div>
   <div id="map-container">
     <div class="map-placeholder" id="map-placeholder">
       <i class="fa fa-map-marked-alt" style="font-size:48px;opacity:.2;display:block;margin-bottom:16px"></i>
@@ -2526,6 +2568,7 @@ function openGoogleMaps(){
 
 // ======================== CARTOGRAPHIE GÉOGRAPHE PROFESSIONNEL ========================
 let _vsMap=null,_vsMarkersLayer=null,_vsZonesLayer=null,_vsLastMapData=null;
+let _vsRiskLayer=null,_vsMapMode='standard',_vsRiskBasis='auto';
 let _vsTileLayers={},_vsCurrentBasemap='osm';
 const VS_ZONE_COLORS=['#e05c2a','#2a7ae0','#27a860','#9b27ae','#c8a800','#00868c','#d43a6a','#5a6e00'];
 
@@ -2679,6 +2722,165 @@ function vsUpdateCartouche(etudes,geo){
   if(el('vc-zone')) el('vc-zone').textContent=zone.substring(0,30);
 }
 
+// ======================================================================
+// CARTES DE VULNÉRABILITÉ / RISQUE — cercles autour des gîtes & zones colorées
+// ======================================================================
+const VS_RISK_KEY='vs_manual_risk_scores';
+function vsGetManualScores(){ try{return JSON.parse(localStorage.getItem(VS_RISK_KEY)||'{}');}catch(e){return {};} }
+function vsSaveManualScores(o){ localStorage.setItem(VS_RISK_KEY,JSON.stringify(o)); }
+
+// 4 paliers de vulnérabilité, alignés sur le style des cartes de référence (rouge/orange/jaune/gris)
+const VS_RISK_TIERS=[
+  {min:75,color:'#c0392b',label:'Population extrêmement vulnérable'},
+  {min:50,color:'#e67e22',label:'Population fortement vulnérable'},
+  {min:25,color:'#f1c40f',label:'Population moyennement vulnérable'},
+  {min:0, color:'#95a5a6',label:'Population faiblement vulnérable'}
+];
+function vsRiskColorFor(score){
+  for(const t of VS_RISK_TIERS){ if(score>=t.min) return t.color; }
+  return VS_RISK_TIERS[VS_RISK_TIERS.length-1].color;
+}
+function vsRiskLabelFor(score){
+  for(const t of VS_RISK_TIERS){ if(score>=t.min) return t.label; }
+  return VS_RISK_TIERS[VS_RISK_TIERS.length-1].label;
+}
+
+// Regroupe les fiches géolocalisées par site (code de site si présent, sinon proximité GPS ~40m)
+function vsGetSiteGroups(geo){
+  const groups=[];
+  const used=new Array(geo.length).fill(false);
+  geo.forEach((f,i)=>{
+    if(used[i]) return;
+    const key = f.siteCode ? siteCodeKey(f.siteCode) : null;
+    const grp=[f]; used[i]=true;
+    for(let j=i+1;j<geo.length;j++){
+      if(used[j]) return;
+      const g=geo[j];
+      const sameSite = key && g.siteCode && siteCodeKey(g.siteCode)===key;
+      const closeBy = !key && !g.siteCode && vsHaversine(f.gps.lat,f.gps.lng,g.gps.lat,g.gps.lng) < 40;
+      if(sameSite||closeBy){ grp.push(g); used[j]=true; }
+    }
+    const lat=grp.reduce((a,x)=>a+x.gps.lat,0)/grp.length;
+    const lng=grp.reduce((a,x)=>a+x.gps.lng,0)/grp.length;
+    const positives=grp.filter(x=>x.gitePositif).length;
+    groups.push({ key: key||`GPS-${lat.toFixed(4)},${lng.toFixed(4)}`, lat, lng, fiches:grp, positives, total:grp.length });
+  });
+  return groups;
+}
+function vsHaversine(lat1,lon1,lat2,lon2){
+  const R=6371000, toRad=d=>d*Math.PI/180;
+  const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
+  const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+function vsComputeScore(site){
+  if(_vsRiskBasis==='manual'){
+    const scores=vsGetManualScores();
+    return scores[site.key]!=null ? scores[site.key] : 50;
+  }
+  // Automatique : % de gîtes positifs au sein du site
+  return site.total>0 ? Math.round((site.positives/site.total)*100) : 0;
+}
+
+function vsPromptManualScore(site){
+  const scores=vsGetManualScores();
+  const current = scores[site.key]!=null ? scores[site.key] : Math.round((site.positives/site.total)*100);
+  const v=prompt(`Score de vulnérabilité pour ce site (0 à 100)\n${site.fiches.length} fiche(s), ${site.positives} positive(s)`, current);
+  if(v===null) return;
+  const num=Math.max(0,Math.min(100,parseInt(v,10)||0));
+  scores[site.key]=num;
+  vsSaveManualScores(scores);
+  vsRenderRiskLayer();
+  showToast(`Score enregistré : ${num}/100`,'s');
+}
+
+function vsSetMapMode(mode){
+  _vsMapMode=mode;
+  document.querySelectorAll('.vs-risk-mode-btn').forEach(b=>b.classList.toggle('active', b.dataset.mode===mode));
+  document.getElementById('vs-risk-basis-group').style.display = mode==='standard' ? 'none' : '';
+  vsRenderRiskLayer();
+}
+function vsSetRiskBasis(basis){
+  _vsRiskBasis=basis;
+  vsRenderRiskLayer();
+}
+
+function vsRenderRiskLayer(){
+  if(!_vsMap || !_vsRiskLayer) return;
+  _vsRiskLayer.clearLayers();
+  if(_vsMapMode==='standard'){
+    if(_vsLastMapData) vsRenderMapLegend(_vsLastMapData.etudes,_vsLastMapData.parEtude);
+    return;
+  }
+  const geo=collection.filter(f=>f.gps?.lat&&f.gps?.lng);
+  if(!geo.length){ vsRenderRiskLegend(); return; }
+  const sites=vsGetSiteGroups(geo);
+  sites.forEach(s=>s.score=vsComputeScore(s));
+
+  if(_vsMapMode==='circles'){
+    sites.forEach(s=>{
+      const color=vsRiskColorFor(s.score);
+      L.circle([s.lat,s.lng],{radius:140,color,weight:2,fillColor:color,fillOpacity:.32})
+        .addTo(_vsRiskLayer)
+        .bindTooltip(`${s.key !== `GPS-${s.lat.toFixed(4)},${s.lng.toFixed(4)}` ? 'Site '+s.key : 'Site'} — Score : ${s.score}/100<br>${s.positives}/${s.total} gîte(s) positif(s)`,{sticky:true})
+        .on('click',()=>{ if(_vsRiskBasis==='manual') vsPromptManualScore(s); });
+    });
+  } else if(_vsMapMode==='zones'){
+    // Grille interpolée (pondération inverse à la distance) pour simuler des zones de risque continues
+    const lats=sites.map(s=>s.lat), lngs=sites.map(s=>s.lng);
+    const minLat=Math.min(...lats)-0.004, maxLat=Math.max(...lats)+0.004;
+    const minLng=Math.min(...lngs)-0.004, maxLng=Math.max(...lngs)+0.004;
+    const GRID=10;
+    const cellLat=(maxLat-minLat)/GRID, cellLng=(maxLng-minLng)/GRID;
+    const maxDist = Math.max(250, vsHaversine(minLat,minLng,maxLat,maxLng)/GRID*1.8);
+    for(let i=0;i<GRID;i++){
+      for(let j=0;j<GRID;j++){
+        const cLat=minLat+cellLat*(i+0.5), cLng=minLng+cellLng*(j+0.5);
+        let wSum=0,scSum=0,nearest=Infinity;
+        sites.forEach(s=>{
+          const d=vsHaversine(cLat,cLng,s.lat,s.lng);
+          nearest=Math.min(nearest,d);
+          const w=1/Math.max(d,15)**2;
+          wSum+=w; scSum+=w*s.score;
+        });
+        if(nearest>maxDist || wSum===0) continue;
+        const score=scSum/wSum;
+        const color=vsRiskColorFor(score);
+        L.rectangle([[minLat+cellLat*i,minLng+cellLng*j],[minLat+cellLat*(i+1),minLng+cellLng*(j+1)]],
+          {color:'transparent',weight:0,fillColor:color,fillOpacity:.4})
+          .addTo(_vsRiskLayer);
+      }
+    }
+    sites.forEach(s=>{
+      L.circleMarker([s.lat,s.lng],{radius:5,color:'#1a1a2e',weight:1.5,fillColor:'#fff',fillOpacity:1})
+        .addTo(_vsRiskLayer)
+        .bindTooltip(`Score : ${s.score}/100 — ${s.positives}/${s.total} positif(s)`,{sticky:true})
+        .on('click',()=>{ if(_vsRiskBasis==='manual') vsPromptManualScore(s); });
+    });
+  }
+  vsRenderRiskLegend();
+}
+
+function vsRenderRiskLegend(){
+  const body=document.getElementById('vs-leg-body');
+  const title=document.querySelector('#vs-map-legend .leg-title');
+  if(!body) return;
+  if(title) title.textContent = _vsMapMode==='circles' ? 'Vulnérabilité par site' : 'Zones de risque';
+  let h=`<div class="leg-group">Niveau de vulnérabilité</div>`;
+  VS_RISK_TIERS.forEach(t=>{
+    h+=`<div class="leg-item"><span style="width:14px;height:14px;border-radius:${_vsMapMode==='circles'?'50%':'2px'};background:${t.color};display:inline-block;flex-shrink:0"></span><span>${t.label}</span></div>`;
+  });
+  if(_vsRiskBasis==='manual'){
+    h+=`<div class="leg-group" style="margin-top:8px">Base du score</div>
+        <div class="leg-item" style="font-size:8px;color:#555">Manuel — cliquez un site sur la carte pour définir son score</div>`;
+  } else {
+    h+=`<div class="leg-group" style="margin-top:8px">Base du score</div>
+        <div class="leg-item" style="font-size:8px;color:#555">Automatique — % de gîtes positifs au site</div>`;
+  }
+  body.innerHTML=h;
+}
+
 // ── Afficher/masquer les overlays cartographiques ──
 function vsShowMapOverlays(show){
   ['vs-bm-panel','vs-coord-bar','vs-north-rose','vs-scale-bar','vs-cartouche','vs-map-legend'].forEach(id=>{
@@ -2711,6 +2913,7 @@ function renderLeafletMap(){
     L.control.zoom({position:'topleft'}).addTo(_vsMap);
     _vsZonesLayer=L.layerGroup().addTo(_vsMap);
     _vsMarkersLayer=L.layerGroup().addTo(_vsMap);
+    _vsRiskLayer=L.layerGroup().addTo(_vsMap);
     // Lecture coordonnées au survol
     _vsMap.on('mousemove',e=>{
       const bar=document.getElementById('vs-coord-bar');
@@ -2761,6 +2964,7 @@ function renderLeafletMap(){
 
   vsRenderMapLegend(etudes,parEtude);
   vsUpdateCartouche(etudes,geo);
+  vsRenderRiskLayer();
 
   if(bounds.length===1) _vsMap.setView(bounds[0],15);
   else if(bounds.length>1) _vsMap.fitBounds(bounds,{padding:[70,70]});
