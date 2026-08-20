@@ -2860,31 +2860,27 @@ function vsRenderRiskLayer(){
         .on('click',()=>{ if(_vsRiskBasis==='manual') vsPromptManualScore(s); });
     });
 
-    // Contour de chaque zone d'étude (encadre visuellement les zones de risque distinctes)
-    const byEtude={};
-    sites.forEach(s=>{ if(!byEtude[s.etude]) byEtude[s.etude]=[]; byEtude[s.etude].push(s); });
-    Object.entries(byEtude).forEach(([etude,grp],idx)=>{
-      const avgScore = grp.reduce((a,s)=>a+s.score,0)/grp.length;
-      const borderColor = vsRiskColorFor(avgScore);
-      const coords = grp.map(s=>[s.lat,s.lng]);
-      if(coords.length===1){
-        L.circle(coords[0],{radius:180,color:'#1a1a2e',weight:2,dashArray:'6,4',fill:false})
-          .addTo(_vsRiskLayer)
-          .bindTooltip(`Zone : ${etude} — score moyen ${avgScore.toFixed(0)}/100`,{sticky:true});
-      } else {
-        const hull = coords.length>=3 ? vsConvexHull(coords) : coords;
-        // Élargit légèrement le contour autour des points pour bien "encadrer" la zone
-        const centerLat=hull.reduce((a,p)=>a+p[0],0)/hull.length;
-        const centerLng=hull.reduce((a,p)=>a+p[1],0)/hull.length;
-        const expanded = hull.map(p=>[
-          centerLat + (p[0]-centerLat)*1.18,
-          centerLng + (p[1]-centerLng)*1.18
-        ]);
-        L.polygon(expanded,{color:'#1a1a2e',weight:2.5,dashArray:'8,5',fill:false})
-          .addTo(_vsRiskLayer)
-          .bindTooltip(`Zone : ${etude} — score moyen ${avgScore.toFixed(0)}/100 (${grp.length} site(s))`,{sticky:true});
-      }
-    });
+    // Un seul contour englobant l'ensemble de la zone d'étude (toutes zones de risque réunies)
+    const allCoords = sites.map(s=>[s.lat,s.lng]);
+    const globalAvgScore = sites.reduce((a,s)=>a+s.score,0)/sites.length;
+    const etudesNames = [...new Set(sites.map(s=>s.etude))];
+    if(allCoords.length===1){
+      L.circle(allCoords[0],{radius:180,color:'#1a1a2e',weight:2.5,dashArray:'8,5',fill:false})
+        .addTo(_vsRiskLayer)
+        .bindTooltip(`Zone d'étude — score moyen ${globalAvgScore.toFixed(0)}/100`,{sticky:true});
+    } else {
+      const hull = allCoords.length>=3 ? vsConvexHull(allCoords) : allCoords;
+      // Élargit légèrement le contour autour des points pour bien encadrer toute la zone
+      const centerLat=hull.reduce((a,p)=>a+p[0],0)/hull.length;
+      const centerLng=hull.reduce((a,p)=>a+p[1],0)/hull.length;
+      const expanded = hull.map(p=>[
+        centerLat + (p[0]-centerLat)*1.18,
+        centerLng + (p[1]-centerLng)*1.18
+      ]);
+      L.polygon(expanded,{color:'#1a1a2e',weight:2.5,dashArray:'8,5',fill:false})
+        .addTo(_vsRiskLayer)
+        .bindTooltip(`Zone d'étude : ${etudesNames.join(', ')} — score moyen ${globalAvgScore.toFixed(0)}/100 (${sites.length} site(s))`,{sticky:true});
+    }
   }
   vsRenderRiskLegend();
 }
