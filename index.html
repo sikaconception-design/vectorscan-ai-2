@@ -2763,7 +2763,8 @@ function vsGetSiteGroups(geo){
     const lat=grp.reduce((a,x)=>a+x.gps.lat,0)/grp.length;
     const lng=grp.reduce((a,x)=>a+x.gps.lng,0)/grp.length;
     const positives=grp.filter(x=>x.gitePositif).length;
-    groups.push({ key: key||`GPS-${lat.toFixed(4)},${lng.toFixed(4)}`, lat, lng, fiches:grp, positives, total:grp.length });
+    const etude = grp[0].etude || 'Sans étude';
+    groups.push({ key: key||`GPS-${lat.toFixed(4)},${lng.toFixed(4)}`, lat, lng, fiches:grp, positives, total:grp.length, etude });
   });
   return groups;
 }
@@ -2857,6 +2858,32 @@ function vsRenderRiskLayer(){
         .addTo(_vsRiskLayer)
         .bindTooltip(`Score : ${s.score}/100 — ${s.positives}/${s.total} positif(s)`,{sticky:true})
         .on('click',()=>{ if(_vsRiskBasis==='manual') vsPromptManualScore(s); });
+    });
+
+    // Contour de chaque zone d'étude (encadre visuellement les zones de risque distinctes)
+    const byEtude={};
+    sites.forEach(s=>{ if(!byEtude[s.etude]) byEtude[s.etude]=[]; byEtude[s.etude].push(s); });
+    Object.entries(byEtude).forEach(([etude,grp],idx)=>{
+      const avgScore = grp.reduce((a,s)=>a+s.score,0)/grp.length;
+      const borderColor = vsRiskColorFor(avgScore);
+      const coords = grp.map(s=>[s.lat,s.lng]);
+      if(coords.length===1){
+        L.circle(coords[0],{radius:180,color:'#1a1a2e',weight:2,dashArray:'6,4',fill:false})
+          .addTo(_vsRiskLayer)
+          .bindTooltip(`Zone : ${etude} — score moyen ${avgScore.toFixed(0)}/100`,{sticky:true});
+      } else {
+        const hull = coords.length>=3 ? vsConvexHull(coords) : coords;
+        // Élargit légèrement le contour autour des points pour bien "encadrer" la zone
+        const centerLat=hull.reduce((a,p)=>a+p[0],0)/hull.length;
+        const centerLng=hull.reduce((a,p)=>a+p[1],0)/hull.length;
+        const expanded = hull.map(p=>[
+          centerLat + (p[0]-centerLat)*1.18,
+          centerLng + (p[1]-centerLng)*1.18
+        ]);
+        L.polygon(expanded,{color:'#1a1a2e',weight:2.5,dashArray:'8,5',fill:false})
+          .addTo(_vsRiskLayer)
+          .bindTooltip(`Zone : ${etude} — score moyen ${avgScore.toFixed(0)}/100 (${grp.length} site(s))`,{sticky:true});
+      }
     });
   }
   vsRenderRiskLegend();
