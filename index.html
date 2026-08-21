@@ -565,6 +565,14 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
 .map-placeholder{text-align:center;color:var(--muted);font-family:var(--font-mono);font-size:13px}
 /* Export bar */
 .vs-export-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+/* Sélecteur de caméra / microscope USB */
+.vs-cam-device-row{display:flex;align-items:center;gap:8px;margin-top:10px;padding:8px 12px;
+  background:var(--bg);border:1px solid var(--border);border-radius:8px;flex-wrap:wrap}
+.vs-cam-device-row i{color:var(--accent)}
+.vs-cam-device-row select{flex:1;min-width:160px;padding:5px 8px;border-radius:6px;
+  border:1px solid var(--border);background:var(--card);color:var(--text);font-family:var(--font-mono);font-size:11.5px}
+.vs-cam-res-badge{font-family:var(--font-mono);font-size:10.5px;color:var(--accent);
+  background:rgba(0,232,122,.1);padding:3px 8px;border-radius:6px;white-space:nowrap}
 /* Séquençage ADN */
 .vs-seq-info{background:rgba(0,232,122,.08);border:1px solid rgba(0,232,122,.25);border-radius:var(--r);
   padding:14px 18px;font-size:13px;color:var(--text);margin-bottom:18px;line-height:1.5}
@@ -1587,10 +1595,16 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
       </div>
       <div class="scan-actions">
         <button class="btn btn-secondary" onclick="startCamera()"><i class="fa fa-camera"></i> Caméra</button>
+        <button class="btn btn-secondary" onclick="startMicroscope()"><i class="fa fa-microscope"></i> Microscope USB</button>
         <button class="btn btn-secondary" onclick="triggerScanUpload()"><i class="fa fa-upload"></i> Importer</button>
         <button class="btn btn-primary" id="scan-btn" onclick="runScan()" disabled><i class="fa fa-search"></i> Analyser</button>
         <button class="btn btn-secondary" onclick="resetScan()"><i class="fa fa-redo"></i></button>
         <button class="btn btn-secondary" onclick="openScanHistory()" title="Revoir les images déjà analysées sans refaire d'appel API"><i class="fa fa-history"></i> Historique<span id="scan-history-count" style="display:none"></span></button>
+      </div>
+      <div class="vs-cam-device-row" id="vs-cam-device-row" style="display:none">
+        <i class="fa fa-video"></i>
+        <select id="vs-cam-device-select" onchange="switchCameraDevice(this.value)"></select>
+        <span class="vs-cam-res-badge" id="vs-cam-res-badge"></span>
       </div>
     </div>
     <div class="ai-panel">
@@ -4883,31 +4897,93 @@ function handleFileSelect(e){
   preview.onload=()=>{ preview.onload=null; runScan(); };
 }
 let cameraActive=false;
+let _vsCurrentStream=null;
+let _vsCurrentDeviceId=null;
+
 function startCamera(){
   if(cameraActive){stopCamera();return;}
+  openCameraWithConstraints({facingMode:'environment',width:{ideal:1280},height:{ideal:720}});
+}
+
+// Connecte spécifiquement un microscope USB (caméra UVC branchée) en demandant la plus haute résolution possible
+async function startMicroscope(){
+  if(cameraActive){stopCamera();}
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
     showToast('Caméra non supportée sur ce navigateur','i');return;
   }
-  navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}}})
+  try{
+    // Demande d'abord l'autorisation générique pour pouvoir lister les périphériques nommés
+    const tmp = await navigator.mediaDevices.getUserMedia({video:true});
+    tmp.getTracks().forEach(t=>t.stop());
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const videoInputs = devices.filter(d=>d.kind==='videoinput');
+    if(!videoInputs.length){ showToast('Aucune caméra détectée. Vérifiez que le microscope USB est bien branché.','i'); return; }
+
+    // Essaie de repérer automatiquement un microscope USB par son nom (USB Camera, UVC, Microscope, Digital…)
+    const guess = videoInputs.find(d=>/microscope|usb|uvc|digital/i.test(d.label));
+    const chosen = guess || videoInputs[videoInputs.length-1]; // à défaut, la dernière caméra branchée (souvent l'USB externe)
+
+    populateCameraDeviceSelect(videoInputs, chosen.deviceId);
+    document.getElementById('vs-cam-device-row').style.display='flex';
+
+    await openCameraWithConstraints({
+      deviceId:{exact:chosen.deviceId},
+      width:{ideal:3840}, height:{ideal:2160} // demande la meilleure résolution que le microscope peut fournir
+    }, chosen.deviceId);
+
+    showToast(guess ? `Microscope USB détecté : ${guess.label}` : 'Caméra USB connectée — vérifiez la sélection ci-dessous si ce n\'est pas le microscope','s');
+  }catch(err){
+    let msg='Microscope USB non disponible';
+    if(err.name==='NotAllowedError') msg='Accès caméra refusé. Autorisez dans les paramètres du navigateur.';
+    else if(err.name==='NotFoundError') msg='Aucun microscope USB détecté. Vérifiez le branchement.';
+    showToast(msg,'i');
+  }
+}
+
+function populateCameraDeviceSelect(videoInputs, selectedId){
+  const sel = document.getElementById('vs-cam-device-select');
+  sel.innerHTML = videoInputs.map((d,i)=>
+    `<option value="${jsAttrEsc(d.deviceId)}" ${d.deviceId===selectedId?'selected':''}>${jsAttrEsc(d.label||'Caméra '+(i+1))}</option>`
+  ).join('');
+}
+
+function switchCameraDevice(deviceId){
+  openCameraWithConstraints({ deviceId:{exact:deviceId}, width:{ideal:3840}, height:{ideal:2160} }, deviceId);
+}
+
+function openCameraWithConstraints(constraints, deviceId){
+  if(_vsCurrentStream){ _vsCurrentStream.getTracks().forEach(t=>t.stop()); }
+  return navigator.mediaDevices.getUserMedia({video:constraints})
   .then(stream=>{
+    _vsCurrentStream = stream;
+    _vsCurrentDeviceId = deviceId || null;
     const v=document.getElementById('camera-stream');
     v.srcObject=stream;v.play();v.style.display='block';
     document.getElementById('scan-placeholder').style.display='none';
     document.getElementById('scan-preview').style.display='none';
     document.getElementById('scan-btn').disabled=false;
     cameraActive=true;
+    const track = stream.getVideoTracks()[0];
+    const settings = track.getSettings ? track.getSettings() : {};
+    const badge = document.getElementById('vs-cam-res-badge');
+    if(badge) badge.textContent = settings.width && settings.height ? `${settings.width}×${settings.height}` : '';
+    if(!deviceId){ document.getElementById('vs-cam-device-row').style.display='none'; }
     showToast('Caméra activée — cliquez Analyser pour capturer','s');
   }).catch(err=>{
     let msg='Caméra non disponible';
     if(err.name==='NotAllowedError') msg='Accès caméra refusé. Autorisez dans les paramètres.';
     else if(err.name==='NotFoundError') msg='Aucune caméra détectée.';
     showToast(msg,'i');
+    throw err;
   });
 }
+
 function stopCamera(){
   const v=document.getElementById('camera-stream');
   if(v.srcObject)v.srcObject.getTracks().forEach(t=>t.stop());
   v.style.display='none';cameraActive=false;
+  _vsCurrentStream=null;
+  document.getElementById('vs-cam-device-row').style.display='none';
 }
 function resetScan(){
   document.getElementById('scan-preview').style.display='none';
