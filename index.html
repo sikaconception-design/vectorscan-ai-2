@@ -565,6 +565,28 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
 .map-placeholder{text-align:center;color:var(--muted);font-family:var(--font-mono);font-size:13px}
 /* Export bar */
 .vs-export-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+/* Séquençage ADN */
+.vs-seq-info{background:rgba(0,232,122,.08);border:1px solid rgba(0,232,122,.25);border-radius:var(--r);
+  padding:14px 18px;font-size:13px;color:var(--text);margin-bottom:18px;line-height:1.5}
+.vs-seq-info i{color:var(--accent);margin-right:6px}
+.vs-seq-upload-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:20px}
+.vs-seq-dropzone{border:2px dashed var(--border);border-radius:12px;padding:36px 20px;text-align:center;cursor:pointer;transition:all .2s}
+.vs-seq-dropzone:hover{border-color:var(--accent);background:rgba(0,232,122,.04)}
+.vs-seq-dropzone i{font-size:32px;color:var(--muted);margin-bottom:10px;display:block}
+.vs-seq-dropzone-title{font-family:var(--font-head);font-weight:700;font-size:14px;color:var(--text)}
+.vs-seq-dropzone-sub{font-family:var(--font-mono);font-size:11px;color:var(--muted);margin-top:4px}
+.vs-seq-params{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end;margin-top:16px}
+.vs-seq-params label{display:flex;flex-direction:column;gap:5px;font-family:var(--font-mono);font-size:11px;color:var(--muted)}
+.vs-seq-params input[type=number]{padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text)}
+.vs-seq-file-list{margin-top:14px;display:flex;flex-direction:column;gap:6px}
+.vs-seq-file-item{display:flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:12px;
+  background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px}
+.vs-seq-file-item i{color:var(--accent)}
+.vs-seq-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.vs-seq-note{margin-top:14px;font-size:12px;color:var(--muted);line-height:1.5;
+  background:rgba(230,126,34,.08);border:1px solid rgba(230,126,34,.25);border-radius:10px;padding:12px 16px}
+.vs-seq-note i{color:#e67e22;margin-right:6px}
+.vs-seq-note a{color:var(--accent)}
 /* Barre de style de carte (cercles/zones de vulnérabilité) */
 .vs-risk-toolbar{display:flex;gap:20px;flex-wrap:wrap;align-items:center;
   background:var(--card);border:1px solid var(--border);border-radius:var(--r);
@@ -1425,6 +1447,7 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
     <button class="nav-tab active" onclick="showSection('scan',this)"><i class="fa fa-qrcode"></i> Scanner</button>
     <button class="nav-tab" onclick="showSection('collection',this)"><i class="fa fa-layer-group"></i> Collection</button>
     <button class="nav-tab" onclick="showSection('database',this)"><i class="fa fa-database"></i> Base de données</button>
+    <button class="nav-tab" onclick="showSection('sequencing',this)"><i class="fa fa-dna"></i> Séquençage</button>
     <button class="nav-tab" onclick="showSection('map',this)"><i class="fa fa-map-marked-alt"></i> Carte GPS</button>
     <button class="nav-tab" onclick="showSection('stats',this)"><i class="fa fa-chart-line"></i> Statistiques</button>
     <button class="nav-tab" onclick="showSection('socio',this)"><i class="fa fa-users"></i> Socio-Anthropo</button>
@@ -1477,6 +1500,7 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
       <button class="mobile-menu-item active" onclick="showSection('scan',this);closeMobileMenu()"><i class="fa fa-qrcode"></i><span>Scanner</span></button>
       <button class="mobile-menu-item" onclick="showSection('collection',this);closeMobileMenu()"><i class="fa fa-layer-group"></i><span>Collection</span></button>
       <button class="mobile-menu-item" onclick="showSection('database',this);closeMobileMenu()"><i class="fa fa-database"></i><span>Base de données</span></button>
+      <button class="mobile-menu-item" onclick="showSection('sequencing',this);closeMobileMenu()"><i class="fa fa-dna"></i><span>Séquençage</span></button>
       <button class="mobile-menu-item" onclick="showSection('map',this);closeMobileMenu()"><i class="fa fa-map-marked-alt"></i><span>Carte GPS</span></button>
       <button class="mobile-menu-item" onclick="showSection('stats',this);closeMobileMenu()"><i class="fa fa-chart-line"></i><span>Statistiques</span></button>
       <button class="mobile-menu-item" onclick="showSection('socio',this);closeMobileMenu()"><i class="fa fa-users"></i><span>Socio-Anthropo</span></button>
@@ -1809,6 +1833,50 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
     <button class="btn btn-secondary"><i class="fa fa-filter"></i></button>
   </div>
   <div class="db-grid" id="db-grid"></div>
+</section>
+
+<!-- ============ SÉQUENÇAGE ADN ============ -->
+<section class="section" id="sec-sequencing">
+  <div class="sec-head"><h1><i class="fa fa-dna"></i> Séquençage ADN</h1><p>Import et filtrage qualité des fichiers de séquençage (FASTQ) — nettoyage avant assemblage externe</p></div>
+
+  <div class="vs-seq-info">
+    <i class="fa fa-info-circle"></i> Importez le(s) fichier(s) FASTQ générés par votre séquenceur. L'application élimine les portions de mauvaise qualité (score Phred) et exporte un fichier nettoyé, prêt pour l'assemblage sur un outil externe (ex : Galaxy, SPAdes).
+  </div>
+
+  <div class="vs-seq-upload-card">
+    <input type="file" id="seq-file-input" accept=".fastq,.fq,.fasta,.fa,.txt" multiple style="display:none" onchange="handleFastqUpload(event)">
+    <div class="vs-seq-dropzone" id="seq-dropzone" onclick="document.getElementById('seq-file-input').click()">
+      <i class="fa fa-cloud-upload-alt"></i>
+      <div class="vs-seq-dropzone-title">Cliquez pour importer un ou plusieurs fichiers FASTQ</div>
+      <div class="vs-seq-dropzone-sub">Formats acceptés : .fastq, .fq (aussi .fasta pour un simple contrôle de composition)</div>
+    </div>
+    <div class="vs-seq-params">
+      <label>Seuil de qualité (score Phred minimum)
+        <input type="number" id="seq-quality-threshold" value="20" min="0" max="40" style="width:70px">
+      </label>
+      <label>Longueur minimale conservée après filtrage (bases)
+        <input type="number" id="seq-min-length" value="50" min="10" max="1000" style="width:80px">
+      </label>
+      <button class="btn btn-primary" id="seq-filter-btn" onclick="runFastqFiltering()" disabled><i class="fa fa-filter"></i> Filtrer les séquences</button>
+    </div>
+    <div id="seq-file-list" class="vs-seq-file-list"></div>
+  </div>
+
+  <div id="seq-results" style="display:none">
+    <div class="stats-grid" style="margin-top:18px">
+      <div class="stat-card"><div class="stat-val" id="seq-stat-total">0</div><div class="stat-label">Séquences totales</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--accent)" id="seq-stat-kept">0</div><div class="stat-label">Conservées après filtrage</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--danger)" id="seq-stat-rejected">0</div><div class="stat-label">Rejetées (qualité/longueur)</div></div>
+      <div class="stat-card"><div class="stat-val" id="seq-stat-avgq">—</div><div class="stat-label">Qualité moyenne (avant → après)</div></div>
+    </div>
+    <div class="vs-seq-actions">
+      <button class="btn btn-secondary" onclick="downloadCleanedFastq()"><i class="fa fa-download"></i> Télécharger le fichier nettoyé (.fastq)</button>
+      <button class="btn btn-secondary" onclick="downloadFastqReport()"><i class="fa fa-file-alt"></i> Télécharger le rapport de filtrage</button>
+    </div>
+    <div class="vs-seq-note">
+      <i class="fa fa-flask"></i> Ce fichier nettoyé peut ensuite être importé dans un outil d'assemblage externe (ex : <a href="https://usegalaxy.org" target="_blank" rel="noopener">Galaxy</a>, SPAdes, Canu) pour reconstruire le génome complet — cette étape nécessite une puissance de calcul que ce navigateur ne peut pas fournir.
+    </div>
+  </div>
 </section>
 
 <!-- ============ MAP ============ -->
@@ -2501,12 +2569,12 @@ function showSection(id, btn) {
   document.getElementById('sec-'+id).classList.add('active');
   if(btn) btn.classList.add('active');
   else document.querySelectorAll('.nav-tab').forEach(t=>{
-    const map = {scan:'Scanner',collection:'Collection',database:'Base',map:'Carte',stats:'Stat',socio:'Socio',chat:'Messages',profile:'profil',users:'Utilisateurs'};
+    const map = {scan:'Scanner',collection:'Collection',database:'Base',sequencing:'Séquençage',map:'Carte',stats:'Stat',socio:'Socio',chat:'Messages',profile:'profil',users:'Utilisateurs'};
     if(t.textContent.includes(map[id]||id)) t.classList.add('active');
   });
   // Sync mobile menu vertical
   document.querySelectorAll('.mobile-menu-item').forEach(t=>t.classList.remove('active'));
-  const mobileIdxMap={scan:0,collection:1,database:2,map:3,stats:4,socio:5,chat:6,profile:7,users:8};
+  const mobileIdxMap={scan:0,collection:1,database:2,sequencing:3,map:4,stats:5,socio:6,chat:7,profile:8,users:9};
   const mIdx=mobileIdxMap[id];
   const mobileItems=document.querySelectorAll('.mobile-menu-item');
   if(mIdx!==undefined && mobileItems[mIdx]) mobileItems[mIdx].classList.add('active');
@@ -2710,6 +2778,163 @@ function vsRenderMapLegend(etudes,parEtude){
     <circle cx="16" cy="16" r="3.5" fill="white"/>
     </svg><span>Position actuelle GPS</span></div>`;
   body.innerHTML=h;
+}
+
+// ======================================================================
+// SÉQUENÇAGE ADN — import FASTQ, filtrage qualité, export
+// ======================================================================
+let _seqFiles = [];       // [{name, content}]
+let _seqCleanedText = ''; // fichier FASTQ nettoyé, prêt au téléchargement
+let _seqReportText = '';  // rapport texte du filtrage
+
+function handleFastqUpload(event){
+  const files = Array.from(event.target.files || []);
+  if(!files.length) return;
+  let pending = files.length;
+  files.forEach(file=>{
+    const reader = new FileReader();
+    reader.onload = (e)=>{
+      _seqFiles.push({ name: file.name, content: e.target.result });
+      pending--;
+      if(pending===0) renderSeqFileList();
+    };
+    reader.onerror = ()=>{ showToast(`Impossible de lire ${file.name}`,'w'); pending--; if(pending===0) renderSeqFileList(); };
+    reader.readAsText(file);
+  });
+}
+
+function renderSeqFileList(){
+  const el = document.getElementById('seq-file-list');
+  el.innerHTML = _seqFiles.map((f,i)=>
+    `<div class="vs-seq-file-item"><i class="fa fa-file-alt"></i> ${jsAttrEsc(f.name)} <span style="color:var(--muted);margin-left:auto">${(f.content.length/1024).toFixed(1)} Ko</span>
+     <button class="vs-mobile-close" style="width:20px;height:20px;font-size:10px" onclick="removeSeqFile(${i})"><i class="fa fa-times"></i></button></div>`
+  ).join('');
+  document.getElementById('seq-filter-btn').disabled = _seqFiles.length===0;
+  document.getElementById('seq-results').style.display='none';
+}
+function removeSeqFile(i){ _seqFiles.splice(i,1); renderSeqFileList(); }
+
+// Score Phred (encodage +33) d'un caractère de qualité FASTQ
+function phredScore(ch){ return ch.charCodeAt(0)-33; }
+
+// Découpe un texte FASTQ en enregistrements {header, seq, qual}
+function parseFastqText(text){
+  const lines = text.split(/\r?\n/).filter(l=>l.length>0);
+  const records = [];
+  for(let i=0;i+3<lines.length;i+=4){
+    if(!lines[i].startsWith('@')) continue; // ligne inattendue, on ignore
+    records.push({ header:lines[i], seq:lines[i+1], qual:lines[i+3] });
+  }
+  return records;
+}
+
+// Coupe les extrémités de mauvaise qualité, puis valide la longueur/qualité moyenne restante
+function trimAndFilterRead(rec, qThreshold, minLen){
+  const { seq, qual } = rec;
+  if(seq.length !== qual.length || seq.length===0) return null;
+  let start=0, end=seq.length-1;
+  while(start<=end && phredScore(qual[start]) < qThreshold) start++;
+  while(end>=start && phredScore(qual[end]) < qThreshold) end--;
+  if(start>end) return null;
+  const trimmedSeq = seq.slice(start,end+1);
+  const trimmedQual = qual.slice(start,end+1);
+  if(trimmedSeq.length < minLen) return null;
+  let sum=0; for(let i=0;i<trimmedQual.length;i++) sum+=phredScore(trimmedQual[i]);
+  const avgQ = sum/trimmedQual.length;
+  if(avgQ < qThreshold) return null;
+  return { header: rec.header, seq: trimmedSeq, qual: trimmedQual, avgQ };
+}
+
+function runFastqFiltering(){
+  if(!_seqFiles.length){ showToast('Importez au moins un fichier FASTQ','w'); return; }
+  const qThreshold = parseInt(document.getElementById('seq-quality-threshold').value,10) || 20;
+  const minLen = parseInt(document.getElementById('seq-min-length').value,10) || 50;
+
+  let totalReads=0, kept=0, rejected=0;
+  let sumQBefore=0, nQBefore=0, sumQAfter=0;
+  const outLines=[];
+  const perFileStats=[];
+
+  _seqFiles.forEach(f=>{
+    const records = parseFastqText(f.content);
+    let fileKept=0;
+    records.forEach(rec=>{
+      totalReads++;
+      for(let i=0;i<rec.qual.length;i++){ sumQBefore+=phredScore(rec.qual[i]); nQBefore++; }
+      const cleaned = trimAndFilterRead(rec, qThreshold, minLen);
+      if(cleaned){
+        kept++; fileKept++;
+        sumQAfter+=cleaned.avgQ;
+        outLines.push(cleaned.header, cleaned.seq, '+', cleaned.qual);
+      } else {
+        rejected++;
+      }
+    });
+    perFileStats.push({ name:f.name, total:records.length, kept:fileKept, rejected:records.length-fileKept });
+  });
+
+  if(totalReads===0){
+    showToast('Aucune séquence FASTQ valide trouvée dans le(s) fichier(s) importé(s)','w');
+    return;
+  }
+
+  _seqCleanedText = outLines.join('\n') + (outLines.length?'\n':'');
+  const avgBefore = nQBefore ? (sumQBefore/nQBefore) : 0;
+  const avgAfter = kept ? (sumQAfter/kept) : 0;
+
+  document.getElementById('seq-stat-total').textContent = totalReads.toLocaleString('fr-FR');
+  document.getElementById('seq-stat-kept').textContent = kept.toLocaleString('fr-FR');
+  document.getElementById('seq-stat-rejected').textContent = rejected.toLocaleString('fr-FR');
+  document.getElementById('seq-stat-avgq').textContent = `${avgBefore.toFixed(1)} → ${avgAfter.toFixed(1)}`;
+  document.getElementById('seq-results').style.display='';
+
+  _seqReportText =
+`RAPPORT DE FILTRAGE QUALITÉ — VectorScan AI
+Généré le ${new Date().toLocaleString('fr-FR')}
+
+Seuil de qualité (Phred) : ${qThreshold}
+Longueur minimale conservée : ${minLen} bases
+
+RÉSUMÉ GLOBAL
+Séquences totales : ${totalReads}
+Séquences conservées : ${kept}
+Séquences rejetées : ${rejected}
+Qualité moyenne avant filtrage : ${avgBefore.toFixed(2)}
+Qualité moyenne après filtrage : ${avgAfter.toFixed(2)}
+
+DÉTAIL PAR FICHIER
+${perFileStats.map(s=>`- ${s.name} : ${s.total} séquence(s), ${s.kept} conservée(s), ${s.rejected} rejetée(s)`).join('\n')}
+
+NOTE : Ce filtrage nettoie les séquences (retrait des extrémités et lectures de mauvaise qualité).
+Il ne construit PAS de génome complet. Pour l'assemblage, importez le fichier nettoyé dans un outil
+dédié (ex : Galaxy usegalaxy.org, SPAdes, Canu).
+`;
+
+  showToast(`Filtrage terminé : ${kept}/${totalReads} séquences conservées`, kept>0 ? 's':'w');
+}
+
+function downloadCleanedFastq(){
+  if(!_seqCleanedText){ showToast('Lancez d\'abord le filtrage','w'); return; }
+  const blob = new Blob([_seqCleanedText], {type:'application/octet-stream'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `sequences_nettoyees_${new Date().toISOString().slice(0,10)}.fastq`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Fichier FASTQ nettoyé téléchargé','s');
+}
+
+function downloadFastqReport(){
+  if(!_seqReportText){ showToast('Lancez d\'abord le filtrage','w'); return; }
+  const blob = new Blob([_seqReportText], {type:'application/octet-stream'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `rapport_filtrage_${new Date().toISOString().slice(0,10)}.txt`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Rapport téléchargé','s');
 }
 
 // ── Cartouche mise à jour ──
