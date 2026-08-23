@@ -4266,6 +4266,7 @@ function saveSocioForm(){
   };
   socioCollection.push(fiche);
   saveSocioStorage();
+  vsSyncSocioToSupabase(fiche);
   closeSocioForm();
   renderSocioList();
   showToast(`Questionnaire ${d.icon} ${d.name} N°${String(fiche.num).padStart(4,'0')} — Score CAP : ${fiche.capScore}/10`,'s');
@@ -6168,6 +6169,7 @@ function saveFiche(){
   if(collector) localStorage.setItem(skey('vs_last_collector'), collector);
   collection.unshift(fiche);
   localStorage.setItem(skey('vs_collection'),JSON.stringify(collection));
+  vsSyncFicheToSupabase(fiche);
   updateNavCount();
   closeFiche();
   fichePhotos=[];
@@ -6700,6 +6702,7 @@ function deleteFiche(id){
   if(!requireWriteAccess('suppression de fiche')) return;
   collection=collection.filter(x=>x.id!==id);
   localStorage.setItem(skey('vs_collection'),JSON.stringify(collection));
+  vsDeleteFicheFromSupabase(id);
   updateNavCount();
   renderCollection();
   showToast('Fiche supprimée','i');
@@ -7812,6 +7815,12 @@ function getMyCollecteurs(){
   return Object.keys(users).filter(id=>id!==me && users[id].referredBy===me);
 }
 function loadCollectionFor(uid){
+  if(sb){
+    // Les fiches de l'équipe viennent désormais de Supabase (visibles sur n'importe quel appareil),
+    // et non plus du localStorage d'un autre appareil qui ne fonctionnait que si les comptes
+    // partageaient le même navigateur.
+    return _vsSupaFichesCache[uid] || [];
+  }
   try{ return JSON.parse(localStorage.getItem(skey('vs_collection',uid)) || '[]'); }catch(e){ return []; }
 }
 function populateDbScopeSelector(){
@@ -7827,6 +7836,7 @@ function populateDbScopeSelector(){
     <option value="team">Toute l'équipe (moi + mes collecteurs)</option>
     ${mine.map(id=>`<option value="${jsAttrEsc(id)}">${jsAttrEsc(users[id].name||id)} (collecteur)</option>`).join('')}`;
   sel.value = dbScope;
+  vsRefreshTeamData();
 }
 function changeDbScope(val){
   dbScope = val;
@@ -8033,6 +8043,10 @@ async function doLogin(){
     if(users[user].pass !== await hashPassword(pass)){
       users[user].pass = await hashPassword(pass); users[user].hashv = 2; saveUsers(users);
     }
+    // Rattache l'identifiant Supabase au profil local si absent (ex : ancien compte, nouvel appareil)
+    if(data?.user?.id && users[user].supaUserId !== data.user.id){
+      users[user].supaUserId = data.user.id; saveUsers(users);
+    }
   } else {
     await new Promise(r=>setTimeout(r,380));
     if(!users[user]){
@@ -8055,6 +8069,8 @@ async function doLogin(){
   ensureUserRoles();
   loadUserData();
   applyRoleUI();
+  vsSyncProfileToSupabase();
+  vsPullOwnDataFromSupabase();
   const rememberPassEl = document.getElementById('login-remember-pass');
   if(rememberPassEl && rememberPassEl.checked){ rememberPass(pass); }
   else{ clearRememberedPass(); }
@@ -8082,10 +8098,13 @@ async function doVerifyOtp(){
   const users = getUsers();
   pendingOtpEmail = null; pendingOtpUser = null;
   if(user && users[user]){
+    if(data?.user?.id && users[user].supaUserId !== data.user.id){ users[user].supaUserId = data.user.id; saveUsers(users); }
     saveSession(user);
     rememberId(user);
     loadUserData();
     applyRoleUI();
+    vsSyncProfileToSupabase();
+    vsPullOwnDataFromSupabase();
     showApp(users[user].name || user, 'welcome');
     if(users[user].role === 'admin' && users[user].referralCode){
       setTimeout(()=>{ showToast(`Compte Administrateur — votre code de parrainage : ${users[user].referralCode}`, 's'); }, 900);
@@ -8142,6 +8161,125 @@ async function doSendOtpForExisting(){
   document.getElementById('otp-code').value = '';
   document.getElementById('otp-success-msg').textContent = 'Code envoyé — vérifiez votre boîte mail (et les spams).';
   document.getElementById('otp-success').style.display = '';
+}
+
+// ======================================================================
+// SYNCHRONISATION SUPABASE — fiches partagées entre appareils (Collection & Socio-Anthropo)
+// ======================================================================
+let _vsSupaFichesCache = {};   // { localUsername: [fiche, ...] } — fiches d'équipe pré-chargées
+let _vsSupaSocioCache = {};    // idem pour socio
+let _vsSupaTeamFetching = false;
+
+// Récupère l'ID Supabase (uuid) de l'utilisateur actuellement connecté
+function vsMyUid(){
+  const u = getSession(); const users = getUsers();
+  return (u && users[u]) ? users[u].supaUserId : null;
+}
+
+// Synchronise le rôle/nom/parrainage locaux vers la table Supabase "profiles"
+// (nécessaire pour que les règles de sécurité — RLS — sachent qui est administrateur)
+async function vsSyncProfileToSupabase(){
+  if(!sb) return;
+  const uid = vsMyUid(); if(!uid) return;
+  const u = getSession(); const users = getUsers(); const me = users[u];
+  if(!me) return;
+  try{
+    await sb.from('profiles').update({
+      name: me.name || '', role: me.role || 'collecteur',
+      referral_code: me.referralCode || null,
+      referred_by: (me.referredBy && users[me.referredBy]) ? users[me.referredBy].supaUserId : null
+    }).eq('id', uid);
+  }catch(e){ /* silencieux — la synchro reprendra à la prochaine connexion */ }
+}
+
+// Envoie une fiche (entomologique) vers Supabase — appelée après chaque enregistrement local
+async function vsSyncFicheToSupabase(fiche){
+  if(!sb) return;
+  const uid = vsMyUid(); if(!uid) return;
+  try{
+    await sb.from('fiches').upsert({ id:String(fiche.id), owner_id:uid, data:fiche, gite_positif:!!fiche.gitePositif });
+  }catch(e){ /* hors-ligne ou erreur réseau : la fiche reste enregistrée localement, on retentera plus tard */ }
+}
+async function vsDeleteFicheFromSupabase(id){
+  if(!sb) return;
+  try{ await sb.from('fiches').delete().eq('id', String(id)); }catch(e){}
+}
+
+// Envoie un questionnaire socio-anthropologique vers Supabase
+async function vsSyncSocioToSupabase(fiche){
+  if(!sb) return;
+  const uid = vsMyUid(); if(!uid) return;
+  try{
+    await sb.from('socio_fiches').upsert({ id:String(fiche.id||fiche.num), owner_id:uid, data:fiche });
+  }catch(e){}
+}
+
+// Recharge les fiches/questionnaires du compte connecté depuis Supabase (arrière-plan, non bloquant)
+// — permet de retrouver ses données sur un nouvel appareil, ou après réinstallation.
+async function vsPullOwnDataFromSupabase(){
+  if(!sb) return;
+  const uid = vsMyUid(); if(!uid) return;
+  try{
+    const [{data:ficheRows}, {data:socioRows}] = await Promise.all([
+      sb.from('fiches').select('data').eq('owner_id', uid).order('created_at',{ascending:false}),
+      sb.from('socio_fiches').select('data').eq('owner_id', uid).order('created_at',{ascending:false})
+    ]);
+    if(ficheRows){
+      const remote = ficheRows.map(r=>r.data);
+      // Fusionne avec les fiches locales pas encore synchronisées (ex : créées hors-ligne)
+      const remoteIds = new Set(remote.map(f=>String(f.id)));
+      const localOnly = collection.filter(f=>!remoteIds.has(String(f.id)));
+      collection = [...remote, ...localOnly];
+      localStorage.setItem(skey('vs_collection'), JSON.stringify(collection));
+      if(collection.length){
+        const maxNum = Math.max(0, ...collection.map(f=>parseInt((f.num||'').replace(/\D/g,''))||0));
+        if(maxNum >= ficheCounter){ ficheCounter = maxNum+1; localStorage.setItem(skey('vs_counter'), ficheCounter); }
+      }
+    }
+    if(socioRows){
+      const remote = socioRows.map(r=>r.data);
+      const remoteIds = new Set(remote.map(f=>String(f.id||f.num)));
+      const localOnly = socioCollection.filter(f=>!remoteIds.has(String(f.id||f.num)));
+      socioCollection = [...remote, ...localOnly];
+      saveSocioStorage();
+    }
+    updateNavCount();
+    if(document.getElementById('sec-collection')?.classList.contains('active')) renderCollection();
+    if(document.getElementById('sec-socio')?.classList.contains('active')) renderSocioList();
+  }catch(e){ /* hors-ligne : on continue avec les données locales déjà chargées */ }
+}
+
+// Charge les fiches de toute l'équipe (mes collecteurs) en une seule requête Supabase
+// — remplace l'ancienne lecture du localStorage d'un autre appareil, qui ne fonctionnait
+// que si l'administrateur et le collecteur partageaient le même navigateur.
+async function vsRefreshTeamData(){
+  if(!sb || _vsSupaTeamFetching) return;
+  const mine = getMyCollecteurs();
+  if(!mine.length) return;
+  const users = getUsers();
+  const idMap = {}; // supaUserId -> identifiant local
+  mine.forEach(localId=>{ if(users[localId]?.supaUserId) idMap[users[localId].supaUserId]=localId; });
+  const supaIds = Object.keys(idMap);
+  if(!supaIds.length) return;
+  _vsSupaTeamFetching = true;
+  try{
+    const [{data:ficheRows}, {data:socioRows}] = await Promise.all([
+      sb.from('fiches').select('data,owner_id').in('owner_id', supaIds),
+      sb.from('socio_fiches').select('data,owner_id').in('owner_id', supaIds)
+    ]);
+    _vsSupaFichesCache = {};
+    (ficheRows||[]).forEach(r=>{
+      const localId = idMap[r.owner_id]; if(!localId) return;
+      (_vsSupaFichesCache[localId] ||= []).push(r.data);
+    });
+    _vsSupaSocioCache = {};
+    (socioRows||[]).forEach(r=>{
+      const localId = idMap[r.owner_id]; if(!localId) return;
+      (_vsSupaSocioCache[localId] ||= []).push(r.data);
+    });
+    if(document.getElementById('sec-collection')?.classList.contains('active')) renderCollection();
+  }catch(e){ /* hors-ligne : la sélection d'équipe restera vide jusqu'à la prochaine tentative */ }
+  finally{ _vsSupaTeamFetching = false; }
 }
 
 async function doRegister(){
