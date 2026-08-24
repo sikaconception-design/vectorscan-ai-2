@@ -1495,7 +1495,7 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
       <div class="nav-avatar" id="nav-avatar">?</div>
       <span class="nav-username" id="nav-username-display"></span>
       <span class="nav-role-badge" id="nav-role-badge" title="Votre rôle sur cet appareil"></span>
-      <span class="vs-sync-badge" id="vs-sync-badge" style="display:none" title="Fiches en attente d'envoi vers le serveur (pas de connexion)"><i class="fa fa-cloud-upload-alt"></i></span>
+      <span class="vs-sync-badge" id="vs-sync-badge" style="display:none;cursor:pointer" title="Fiches en attente d'envoi vers le serveur — cliquez pour le détail" onclick="openSyncQueueModal()"><i class="fa fa-cloud-upload-alt"></i></span>
       <button class="nav-logout-btn" onclick="doLogout()"><i class="fa fa-sign-out-alt"></i> Quitter</button>
     </div>
   </div>
@@ -2323,6 +2323,10 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
     <div class="stat-card"><div class="stat-val" style="color:var(--danger)" id="sup-stat-positifs">0</div><div class="stat-label">Gîtes positifs — équipe</div></div>
     <div class="stat-card"><div class="stat-val" id="sup-stat-semaine">0</div><div class="stat-label">Fiches cette semaine</div></div>
   </div>
+  <div class="vs-export-bar">
+    <button class="btn btn-secondary" onclick="exportTeamPDF()"><i class="fa fa-file-pdf"></i> Export PDF — toute l'équipe</button>
+    <button class="btn btn-secondary" onclick="exportTeamCSV()"><i class="fa fa-file-csv"></i> Export CSV — toute l'équipe</button>
+  </div>
   <div class="vs-sup-table-wrap">
     <table class="vs-sup-table">
       <thead><tr><th>Collecteur</th><th>Fiches</th><th>Gîtes positifs</th><th>Dernière activité</th><th>Statut</th></tr></thead>
@@ -2332,6 +2336,12 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
   <div id="sup-empty" style="display:none;text-align:center;padding:40px;color:var(--muted);font-family:var(--font-mono);font-size:13px">
     Aucun collecteur rattaché à votre compte pour l'instant.
   </div>
+
+  <div class="sec-head" style="margin-top:28px"><h1 style="font-size:18px">Fiches de l'équipe</h1><p>Recherchez et consultez les fiches de tous vos collecteurs</p></div>
+  <div class="db-search">
+    <input type="text" id="sup-fiche-search" placeholder="Rechercher par espèce, collecteur, site..." oninput="renderSupFicheList()">
+  </div>
+  <div id="sup-fiche-list" class="vs-seq-file-list" style="margin-top:12px"></div>
 </section>
 
 <!-- ============ GESTION DES RÔLES (admin uniquement) ============ -->
@@ -2452,6 +2462,23 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
     <div class="fiche-footer">
       <button class="btn btn-secondary" onclick="closeFiche()"><i class="fa fa-times"></i> Annuler</button>
       <button class="btn btn-primary" onclick="saveFiche()"><i class="fa fa-save"></i> Enregistrer la fiche</button>
+    </div>
+  </div>
+</div>
+
+<!-- FILE D'ATTENTE DE SYNCHRONISATION -->
+<div class="fiche-overlay" id="sync-queue-overlay" onclick="if(event.target===this)closeSyncQueueModal()">
+  <div class="fiche-modal" id="sync-queue-modal" style="max-width:480px">
+    <div class="fiche-header">
+      <div class="fiche-header-left"><div><div class="fiche-num"><i class="fa fa-cloud-upload-alt"></i> En attente de synchronisation</div></div></div>
+      <button class="fiche-close" onclick="closeSyncQueueModal()"><i class="fa fa-times"></i></button>
+    </div>
+    <div class="fiche-body">
+      <div id="sync-queue-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px"></div>
+      <div id="sync-queue-empty" style="display:none;text-align:center;padding:20px;color:var(--muted);font-family:var(--font-mono);font-size:12px">
+        Tout est synchronisé — aucune fiche en attente.
+      </div>
+      <button class="btn btn-primary" style="width:100%" onclick="forceRetrySyncQueue()"><i class="fa fa-sync"></i> Réessayer maintenant</button>
     </div>
   </div>
 </div>
@@ -3053,6 +3080,26 @@ function vsHaversine(lat1,lon1,lat2,lon2){
   const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
   const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
   return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+// Vérifie si un gîte très proche (< 20 m) a déjà été signalé le même jour, par soi-même ou un collègue
+// (interroge Supabase quand disponible ; sinon se limite aux fiches déjà présentes sur cet appareil)
+async function vsCheckDuplicateGite(lat, lng, dateStr){
+  if(isNaN(lat)||isNaN(lng)) return null;
+  const THRESHOLD_M = 20;
+  let candidates = collection.filter(f=>f.date===dateStr && f.gps?.lat);
+  if(sb && dateStr){
+    try{
+      const { data } = await sb.from('fiches').select('data').filter('data->>date','eq',dateStr);
+      if(data) candidates = candidates.concat(data.map(r=>r.data).filter(f=>f?.gps?.lat));
+    }catch(e){ /* hors-ligne : on se contente des fiches locales */ }
+  }
+  let best=null;
+  candidates.forEach(f=>{
+    const d = vsHaversine(lat,lng,f.gps.lat,f.gps.lng);
+    if(d<=THRESHOLD_M && (!best || d<best.distance)) best={distance:d, collector:f.collector};
+  });
+  return best;
 }
 
 function vsComputeScore(site){
@@ -6160,7 +6207,7 @@ function getRadioVal(groupId){
   return sel?(sel.dataset.val||''):'';
 }
 
-function saveFiche(){
+async function saveFiche(){
   if(!requireWriteAccess('enregistrement de fiche')) return;
   const collector=(document.getElementById('f-collector')?.value||'').trim();
   const etude=(document.getElementById('f-etude')?.value||'').trim();
@@ -6169,6 +6216,21 @@ function saveFiche(){
   if(!collector){showToast('Nom du collecteur requis','w');document.getElementById('f-collector').focus();return;}
   if(!etude){showToast('Nom de l\'étude / mission requis','w');document.getElementById('f-etude').focus();return;}
   if(!lat||!lng){showToast('Coordonnées GPS requises','w');return;}
+  if(!fichePhotos.length){
+    showToast('Ajoutez au moins une photo avant d\'enregistrer la fiche','w');
+    return;
+  }
+  const latN=parseFloat(lat), lngN=parseFloat(lng);
+  // Contrôle qualité : coordonnées en dehors de la zone attendue (Côte d'Ivoire, avec marge)
+  if(latN<3 || latN>11.5 || lngN<-9 || lngN>-2){
+    if(!confirm('⚠️ Ces coordonnées GPS semblent en dehors de la Côte d\'Ivoire.\nVoulez-vous quand même enregistrer cette fiche ?')) return;
+  }
+  // Détection de doublon : un gîte très proche a-t-il déjà été signalé le même jour (par vous ou un collègue) ?
+  const ficheDate = document.getElementById('f-date')?.value||'';
+  const dup = await vsCheckDuplicateGite(latN, lngN, ficheDate);
+  if(dup){
+    if(!confirm(`⚠️ Un gîte a déjà été signalé à environ ${Math.round(dup.distance)} m de cet endroit, le même jour, par ${dup.collector||'un autre collecteur'}.\nVoulez-vous quand même enregistrer cette nouvelle fiche ?`)) return;
+  }
 
   const num=String(ficheCounter).padStart(4,'0');
   const fiche={
@@ -8256,7 +8318,44 @@ function vsUpdateSyncBadge(q){
   q = q || vsGetQueue();
   const n = (q.fiches?.length||0) + (q.socio?.length||0);
   const badge = document.getElementById('vs-sync-badge');
-  if(badge){ badge.style.display = n>0 ? '' : 'none'; badge.textContent = n; }
+  if(badge){
+    badge.style.display = n>0 ? '' : 'none';
+    badge.innerHTML = `<i class="fa fa-cloud-upload-alt"></i> ${n}`;
+  }
+  if(document.getElementById('sync-queue-overlay')?.classList.contains('open')) renderSyncQueueModal();
+}
+let _vsSyncErrors = {}; // { "fiches:123": "message d'erreur court" }
+function vsSetSyncError(type,id,msg){ _vsSyncErrors[`${type}:${id}`] = msg; }
+function vsClearSyncError(type,id){ delete _vsSyncErrors[`${type}:${id}`]; }
+
+function openSyncQueueModal(){ renderSyncQueueModal(); document.getElementById('sync-queue-overlay').classList.add('open'); }
+function closeSyncQueueModal(){ document.getElementById('sync-queue-overlay').classList.remove('open'); }
+function renderSyncQueueModal(){
+  const q = vsGetQueue();
+  const list = document.getElementById('sync-queue-list');
+  const empty = document.getElementById('sync-queue-empty');
+  const items = [];
+  q.fiches.forEach(id=>{
+    const f = collection.find(x=>String(x.id)===id);
+    items.push({ label: f ? `Fiche ${f.num} — ${f.collector||''}` : `Fiche #${id}`, err: _vsSyncErrors[`fiches:${id}`] });
+  });
+  q.socio.forEach(id=>{
+    const f = socioCollection.find(x=>String(x.id||x.num)===id);
+    items.push({ label: f ? `Questionnaire ${f.num||id} — ${f.diseaseName||''}` : `Questionnaire #${id}`, err: _vsSyncErrors[`socio:${id}`] });
+  });
+  if(!items.length){ list.innerHTML=''; empty.style.display=''; return; }
+  empty.style.display='none';
+  list.innerHTML = items.map(it=>`
+    <div style="display:flex;flex-direction:column;gap:2px;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px">
+      <span style="font-family:var(--font-head);font-size:12.5px;font-weight:600">${jsAttrEsc(it.label)}</span>
+      <span style="font-family:var(--font-mono);font-size:10.5px;color:${it.err?'var(--danger)':'var(--muted)'}">${it.err?jsAttrEsc(it.err):'En attente de connexion…'}</span>
+    </div>`).join('');
+}
+async function forceRetrySyncQueue(){
+  showToast('Nouvelle tentative en cours…','i');
+  await vsRetrySyncQueue();
+  renderSyncQueueModal();
+  showToast('Synchronisation à jour','s');
 }
 // Retente l'envoi de tout ce qui est resté en attente (appelée au chargement, à la reconnexion, et périodiquement)
 async function vsRetrySyncQueue(){
@@ -8310,9 +8409,12 @@ async function vsSyncFicheToSupabase(fiche){
   if(!uid){ vsQueueAdd('fiches', fiche.id); return; }
   try{
     const uploadable = await vsUploadFichePhotos(fiche, uid);
-    await sb.from('fiches').upsert({ id:String(fiche.id), owner_id:uid, data:uploadable, gite_positif:!!fiche.gitePositif });
+    const { error } = await sb.from('fiches').upsert({ id:String(fiche.id), owner_id:uid, data:uploadable, gite_positif:!!fiche.gitePositif });
+    if(error) throw error;
     vsQueueRemove('fiches', fiche.id);
+    vsClearSyncError('fiches', fiche.id);
   }catch(e){
+    vsSetSyncError('fiches', fiche.id, e?.message || 'Connexion indisponible');
     vsQueueAdd('fiches', fiche.id); // hors-ligne ou erreur réseau : on retentera plus tard
   }
 }
@@ -8320,6 +8422,7 @@ async function vsDeleteFicheFromSupabase(id){
   if(!sb) return;
   try{ await sb.from('fiches').delete().eq('id', String(id)); }catch(e){}
   vsQueueRemove('fiches', id);
+  vsClearSyncError('fiches', id);
 }
 
 // Envoie un questionnaire socio-anthropologique vers Supabase
@@ -8329,9 +8432,14 @@ async function vsSyncSocioToSupabase(fiche){
   const fid = fiche.id||fiche.num;
   if(!uid){ vsQueueAdd('socio', fid); return; }
   try{
-    await sb.from('socio_fiches').upsert({ id:String(fid), owner_id:uid, data:fiche });
+    const { error } = await sb.from('socio_fiches').upsert({ id:String(fid), owner_id:uid, data:fiche });
+    if(error) throw error;
     vsQueueRemove('socio', fid);
-  }catch(e){ vsQueueAdd('socio', fid); }
+    vsClearSyncError('socio', fid);
+  }catch(e){
+    vsSetSyncError('socio', fid, e?.message || 'Connexion indisponible');
+    vsQueueAdd('socio', fid);
+  }
 }
 
 // Recharge les fiches/questionnaires du compte connecté depuis Supabase (arrière-plan, non bloquant)
@@ -8452,10 +8560,118 @@ async function renderSupervision(){
       <td style="font-family:var(--font-mono);font-size:11.5px;color:var(--muted)">${r.lastLabel}</td>
       <td><span class="vs-sup-status ${r.statusClass}"><i class="fa fa-circle" style="font-size:6px"></i> ${r.statusLabel}</span></td>
     </tr>`).join('');
+  renderSupFicheList();
 }
 function vsCountThisWeek(fiches){
   const weekAgo = Date.now()-7*86400000;
   return fiches.filter(f=>{ const t=new Date(f.date||0).getTime(); return !isNaN(t) && t>=weekAgo; }).length;
+}
+
+// Rassemble toutes les fiches visibles par l'admin (les siennes + celles de son équipe déjà chargées)
+function vsGetAllTeamFiches(){
+  const users = getUsers();
+  const out = [...collection.map(f=>({...f, _collectorLocalId:getSession()}))];
+  Object.entries(_vsSupaFichesCache).forEach(([uid,fiches])=>{
+    fiches.forEach(f=>out.push({...f, _collectorLocalId:uid}));
+  });
+  return out;
+}
+
+function renderSupFicheList(){
+  const el = document.getElementById('sup-fiche-list');
+  if(!el) return;
+  const q = (document.getElementById('sup-fiche-search')?.value||'').toLowerCase().trim();
+  let fiches = vsGetAllTeamFiches();
+  if(q){
+    fiches = fiches.filter(f =>
+      (f.arthropode||'').toLowerCase().includes(q) ||
+      (f.collector||'').toLowerCase().includes(q) ||
+      (f.siteCode||'').toLowerCase().includes(q) ||
+      (f.etude||'').toLowerCase().includes(q) ||
+      (f.address||'').toLowerCase().includes(q)
+    );
+  }
+  fiches.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  fiches = fiches.slice(0,150); // limite d'affichage pour rester fluide
+  if(!fiches.length){ el.innerHTML = `<div style="text-align:center;padding:20px;color:var(--muted);font-family:var(--font-mono);font-size:12px">Aucune fiche ne correspond à cette recherche.</div>`; return; }
+  el.innerHTML = fiches.map(f=>`
+    <div class="vs-seq-file-item" style="cursor:pointer" onclick="vsOpenTeamFicheDetail('${jsAttrEsc(String(f.id))}','${jsAttrEsc(f._collectorLocalId||'')}')">
+      <i class="fa fa-${f.gitePositif?'circle-exclamation" style="color:var(--danger)':'circle-check" style="color:var(--muted)'}"></i>
+      <span>${jsAttrEsc(f.num||'')} — ${jsAttrEsc(f.gitePositif?(f.arthropode||'Gîte positif'):'Gîte négatif')}</span>
+      <span style="color:var(--muted)">${jsAttrEsc(f.collector||'')}</span>
+      <span style="margin-left:auto;color:var(--muted)">${jsAttrEsc(f.date||'')}</span>
+    </div>`).join('');
+}
+function vsOpenTeamFicheDetail(id, ownerLocalId){
+  const isMine = ownerLocalId===getSession() || !ownerLocalId;
+  if(isMine){ showFicheDetail(isNaN(id)?id:Number(id), null); return; }
+  const users = getUsers();
+  const name = users[ownerLocalId]?.name || ownerLocalId;
+  const raw = (_vsSupaFichesCache[ownerLocalId]||[]).find(f=>String(f.id)===String(id));
+  if(!raw){ showToast('Fiche introuvable','w'); return; }
+  scopedCollectionCache = [...scopedCollectionCache, { ...raw, _ownerId:ownerLocalId, _ownerName:name }];
+  showFicheDetail(raw.id, ownerLocalId);
+}
+
+// ── Export consolidé de toute l'équipe (PDF & CSV) ──
+function exportTeamPDF(){
+  const fiches = vsGetAllTeamFiches();
+  if(!fiches.length){ showToast('Aucune fiche à exporter','w'); return; }
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const W=doc.internal.pageSize.getWidth(),H=doc.internal.pageSize.getHeight();
+  const M=10;
+  doc.setFillColor(26,26,46);doc.rect(0,0,W,20,'F');
+  if(CEMV_LOGO_DATA_URI){ try{ doc.addImage(CEMV_LOGO_DATA_URI,'PNG',M,2.5,22,15); }catch(e){} }
+  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(13);
+  doc.text("VectorScan AI — Rapport consolidé de l'équipe",W/2,11,{align:'center'});
+  doc.setFontSize(8);doc.setFont('helvetica','normal');
+  doc.text(`Généré le ${new Date().toLocaleString('fr-FR')} — ${fiches.length} fiche(s), ${new Set(fiches.map(f=>f.collector)).size} collecteur(s)`,W/2,17,{align:'center'});
+
+  let y=28;
+  const cols=[{h:'N°',w:16},{h:'Date',w:20},{h:'Collecteur',w:28},{h:'Étude',w:26},{h:'Site',w:38},{h:'Espèce',w:34},{h:'Statut',w:20},{h:'Stade',w:18}];
+  let x=M;
+  doc.setFillColor(230,232,240);cols.forEach(c=>{doc.rect(x,y-4,c.w,7,'F');x+=c.w;});
+  x=M;doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(26,26,46);
+  cols.forEach(c=>{doc.text(c.h,x+1,y);x+=c.w;});
+  y+=5;doc.setFont('helvetica','normal');
+  fiches.sort((a,b)=>(b.date||'').localeCompare(a.date||'')).forEach((f,i)=>{
+    if(y>H-14){doc.addPage();y=18;}
+    if(i%2===0){doc.setFillColor(248,248,252);doc.rect(M,y-4,cols.reduce((a,c)=>a+c.w,0),7,'F');}
+    const vals=[f.num||'', f.date||'', (f.collector||'').substring(0,16), (f.etude||'').substring(0,14),
+      (f.address||f.siteCode||'').substring(0,22), f.gitePositif?(f.arthropode||'').substring(0,20):'—',
+      f.gitePositif?'Positif':'Négatif', f.gitePositif?(f.stade||'—'):'—'];
+    x=M;
+    vals.forEach((v,vi)=>{
+      doc.setTextColor(vi===6 ? (f.gitePositif?192:39) : 26, vi===6 ? (f.gitePositif?57:51) : 26, vi===6 ? (f.gitePositif?43:39) : 46);
+      doc.text(String(v),x+1,y,{maxWidth:cols[vi].w-2});
+      x+=cols[vi].w;
+    });
+    y+=6;
+  });
+  doc.save(`Rapport_equipe_VectorScan_${new Date().toISOString().slice(0,10)}.pdf`);
+  showToast('Rapport PDF de l\'équipe exporté','s');
+}
+
+function exportTeamCSV(){
+  const fiches = vsGetAllTeamFiches();
+  if(!fiches.length){ showToast('Aucune fiche à exporter','w'); return; }
+  const headers=['Numéro','Date','Heure','Collecteur','Étude','Site','Adresse','Latitude','Longitude','Statut','Espèce','Stade','Larves','Nymphes','Adultes'];
+  const rows=fiches.map(f=>[
+    f.num||'', f.date||'', f.time||'', f.collector||'', f.etude||'', f.siteCode||'', f.address||'',
+    f.gps?.lat||'', f.gps?.lng||'', f.gitePositif?'Positif':'Négatif',
+    f.gitePositif?(f.arthropode||''):'', f.gitePositif?(f.stade||''):'',
+    f.cntLarves||0, f.cntNymphes||0, f.cntAdultes||0
+  ]);
+  const esc = v => `"${String(v).replace(/"/g,'""')}"`;
+  const csv = '\ufeff'+[headers.map(esc).join(';'), ...rows.map(r=>r.map(esc).join(';'))].join('\r\n');
+  const blob = new Blob([csv], {type:'application/octet-stream'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download=`Rapport_equipe_VectorScan_${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Rapport CSV de l\'équipe exporté','s');
 }
 
 // ── Temps réel : nouvelles fiches de l'équipe visibles instantanément (Supabase Realtime) ──
