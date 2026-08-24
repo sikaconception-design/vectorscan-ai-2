@@ -573,6 +573,22 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
   border:1px solid var(--border);background:var(--card);color:var(--text);font-family:var(--font-mono);font-size:11.5px}
 .vs-cam-res-badge{font-family:var(--font-mono);font-size:10.5px;color:var(--accent);
   background:rgba(0,232,122,.1);padding:3px 8px;border-radius:6px;white-space:nowrap}
+.vs-sync-badge{display:flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:10.5px;
+  color:#e67e22;background:rgba(230,126,34,.12);border:1px solid rgba(230,126,34,.3);
+  padding:4px 8px;border-radius:12px;animation:vsSyncPulse 1.8s ease-in-out infinite}
+@keyframes vsSyncPulse{0%,100%{opacity:1}50%{opacity:.55}}
+/* Supervision d'équipe */
+.vs-sup-table-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow-x:auto}
+.vs-sup-table{width:100%;border-collapse:collapse;font-size:13px}
+.vs-sup-table th{text-align:left;padding:12px 16px;font-family:var(--font-mono);font-size:10.5px;
+  text-transform:uppercase;letter-spacing:.05em;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap}
+.vs-sup-table td{padding:12px 16px;border-bottom:1px solid var(--border);white-space:nowrap}
+.vs-sup-table tr:last-child td{border-bottom:none}
+.vs-sup-status{display:inline-flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:11px;
+  padding:3px 9px;border-radius:12px}
+.vs-sup-status.active{background:rgba(0,232,122,.12);color:var(--accent)}
+.vs-sup-status.warn{background:rgba(230,126,34,.12);color:#e67e22}
+.vs-sup-status.alert{background:rgba(192,57,43,.12);color:var(--danger)}
 /* Séquençage ADN */
 .vs-seq-info{background:rgba(0,232,122,.08);border:1px solid rgba(0,232,122,.25);border-radius:var(--r);
   padding:14px 18px;font-size:13px;color:var(--text);margin-bottom:18px;line-height:1.5}
@@ -1461,6 +1477,7 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
     <button class="nav-tab" onclick="showSection('socio',this)"><i class="fa fa-users"></i> Socio-Anthropo</button>
     <button class="nav-tab" id="nav-tab-chat" onclick="showSection('chat',this)"><i class="fa fa-comments"></i> Messages<span class="chat-badge" id="chat-badge-desktop" style="display:none">0</span></button>
     <button class="nav-tab" id="nav-tab-profile" onclick="showSection('profile',this)"><i class="fa fa-id-card"></i> Mon profil</button>
+    <button class="nav-tab role-admin-only" id="nav-tab-supervision" style="display:none" onclick="showSection('supervision',this)"><i class="fa fa-chart-pie"></i> Supervision</button>
     <button class="nav-tab role-admin-only" id="nav-tab-users" style="display:none" onclick="showSection('users',this)"><i class="fa fa-user-shield"></i> Utilisateurs</button>
   </div>
   <div style="display:flex;align-items:center;gap:16px;flex-shrink:0" id="nav-right-group">
@@ -1478,6 +1495,7 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
       <div class="nav-avatar" id="nav-avatar">?</div>
       <span class="nav-username" id="nav-username-display"></span>
       <span class="nav-role-badge" id="nav-role-badge" title="Votre rôle sur cet appareil"></span>
+      <span class="vs-sync-badge" id="vs-sync-badge" style="display:none" title="Fiches en attente d'envoi vers le serveur (pas de connexion)"><i class="fa fa-cloud-upload-alt"></i></span>
       <button class="nav-logout-btn" onclick="doLogout()"><i class="fa fa-sign-out-alt"></i> Quitter</button>
     </div>
   </div>
@@ -1514,6 +1532,7 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
       <button class="mobile-menu-item" onclick="showSection('socio',this);closeMobileMenu()"><i class="fa fa-users"></i><span>Socio-Anthropo</span></button>
       <button class="mobile-menu-item" id="mobile-menu-item-chat" onclick="showSection('chat',this);closeMobileMenu()"><i class="fa fa-comments"></i><span>Messages</span><span class="chat-badge" id="chat-badge-mobile" style="display:none">0</span></button>
       <button class="mobile-menu-item" id="mobile-menu-item-profile" onclick="showSection('profile',this);closeMobileMenu()"><i class="fa fa-id-card"></i><span>Mon profil</span></button>
+      <button class="mobile-menu-item role-admin-only" id="mobile-menu-item-supervision" style="display:none" onclick="showSection('supervision',this);closeMobileMenu()"><i class="fa fa-chart-pie"></i><span>Supervision</span></button>
       <button class="mobile-menu-item role-admin-only" id="mobile-menu-item-users" style="display:none" onclick="showSection('users',this);closeMobileMenu()"><i class="fa fa-user-shield"></i><span>Utilisateurs</span></button>
       <div class="mobile-menu-divider"></div>
       <div class="mobile-menu-item" style="cursor:default">
@@ -2295,6 +2314,26 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
   </div>
 </section>
 
+<!-- ============ SUPERVISION D'ÉQUIPE (admin uniquement) ============ -->
+<section class="section" id="sec-supervision">
+  <div class="sec-head"><h1><i class="fa fa-chart-pie"></i> Supervision d'équipe</h1><p>Vue d'ensemble de l'activité de tous vos collecteurs</p></div>
+  <div class="stats-grid" style="margin-bottom:20px">
+    <div class="stat-card"><div class="stat-val" id="sup-stat-collecteurs">0</div><div class="stat-label">Collecteurs actifs</div></div>
+    <div class="stat-card"><div class="stat-val" id="sup-stat-fiches">0</div><div class="stat-label">Fiches — toute l'équipe</div></div>
+    <div class="stat-card"><div class="stat-val" style="color:var(--danger)" id="sup-stat-positifs">0</div><div class="stat-label">Gîtes positifs — équipe</div></div>
+    <div class="stat-card"><div class="stat-val" id="sup-stat-semaine">0</div><div class="stat-label">Fiches cette semaine</div></div>
+  </div>
+  <div class="vs-sup-table-wrap">
+    <table class="vs-sup-table">
+      <thead><tr><th>Collecteur</th><th>Fiches</th><th>Gîtes positifs</th><th>Dernière activité</th><th>Statut</th></tr></thead>
+      <tbody id="sup-team-tbody"></tbody>
+    </table>
+  </div>
+  <div id="sup-empty" style="display:none;text-align:center;padding:40px;color:var(--muted);font-family:var(--font-mono);font-size:13px">
+    Aucun collecteur rattaché à votre compte pour l'instant.
+  </div>
+</section>
+
 <!-- ============ GESTION DES RÔLES (admin uniquement) ============ -->
 <section class="section" id="sec-users">
   <div class="collection-header">
@@ -2578,17 +2617,18 @@ const MAX_SCAN_HISTORY = 24;
 // ======================== NAV ========================
 function showSection(id, btn) {
   if(id==='users' && !isAdminRole()){ showToast('Section réservée aux administrateurs','w'); return; }
+  if(id==='supervision' && !isAdminRole()){ showToast('Section réservée aux administrateurs','w'); return; }
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('sec-'+id).classList.add('active');
   if(btn) btn.classList.add('active');
   else document.querySelectorAll('.nav-tab').forEach(t=>{
-    const map = {scan:'Scanner',collection:'Collection',database:'Base',sequencing:'Séquençage',map:'Carte',stats:'Stat',socio:'Socio',chat:'Messages',profile:'profil',users:'Utilisateurs'};
+    const map = {scan:'Scanner',collection:'Collection',database:'Base',sequencing:'Séquençage',map:'Carte',stats:'Stat',socio:'Socio',chat:'Messages',profile:'profil',supervision:'Supervision',users:'Utilisateurs'};
     if(t.textContent.includes(map[id]||id)) t.classList.add('active');
   });
   // Sync mobile menu vertical
   document.querySelectorAll('.mobile-menu-item').forEach(t=>t.classList.remove('active'));
-  const mobileIdxMap={scan:0,collection:1,database:2,sequencing:3,map:4,stats:5,socio:6,chat:7,profile:8,users:9};
+  const mobileIdxMap={scan:0,collection:1,database:2,sequencing:3,map:4,stats:5,socio:6,chat:7,profile:8,supervision:9,users:10};
   const mIdx=mobileIdxMap[id];
   const mobileItems=document.querySelectorAll('.mobile-menu-item');
   if(mIdx!==undefined && mobileItems[mIdx]) mobileItems[mIdx].classList.add('active');
@@ -2600,6 +2640,7 @@ function showSection(id, btn) {
   if(id==='socio') renderSocioList();
   if(id==='chat') renderChat();
   if(id==='profile') renderProfile();
+  if(id==='supervision') renderSupervision();
   if(id==='users') renderUsersAdmin();
 }
 
@@ -8071,6 +8112,9 @@ async function doLogin(){
   applyRoleUI();
   vsSyncProfileToSupabase();
   vsPullOwnDataFromSupabase();
+  vsRetrySyncQueue();
+  vsUpdateSyncBadge();
+  vsSubscribeRealtime();
   const rememberPassEl = document.getElementById('login-remember-pass');
   if(rememberPassEl && rememberPassEl.checked){ rememberPass(pass); }
   else{ clearRememberedPass(); }
@@ -8105,6 +8149,9 @@ async function doVerifyOtp(){
     applyRoleUI();
     vsSyncProfileToSupabase();
     vsPullOwnDataFromSupabase();
+    vsRetrySyncQueue();
+    vsUpdateSyncBadge();
+    vsSubscribeRealtime();
     showApp(users[user].name || user, 'welcome');
     if(users[user].role === 'admin' && users[user].referralCode){
       setTimeout(()=>{ showToast(`Compte Administrateur — votre code de parrainage : ${users[user].referralCode}`, 's'); }, 900);
@@ -8192,26 +8239,99 @@ async function vsSyncProfileToSupabase(){
   }catch(e){ /* silencieux — la synchro reprendra à la prochaine connexion */ }
 }
 
+// ── File d'attente de synchronisation hors-ligne ──
+// Garde en mémoire les fiches qui n'ont pas pu être envoyées (pas de réseau), pour réessayer plus tard.
+function vsQueueKey(){ return skey('vs_sync_queue'); }
+function vsGetQueue(){ try{ return JSON.parse(localStorage.getItem(vsQueueKey())||'{"fiches":[],"socio":[]}'); }catch(e){ return {fiches:[],socio:[]}; } }
+function vsSaveQueue(q){ localStorage.setItem(vsQueueKey(), JSON.stringify(q)); vsUpdateSyncBadge(q); }
+function vsQueueAdd(type,id){
+  const q=vsGetQueue(); const arr=q[type];
+  if(!arr.includes(String(id))) arr.push(String(id));
+  vsSaveQueue(q);
+}
+function vsQueueRemove(type,id){
+  const q=vsGetQueue(); q[type]=q[type].filter(x=>x!==String(id)); vsSaveQueue(q);
+}
+function vsUpdateSyncBadge(q){
+  q = q || vsGetQueue();
+  const n = (q.fiches?.length||0) + (q.socio?.length||0);
+  const badge = document.getElementById('vs-sync-badge');
+  if(badge){ badge.style.display = n>0 ? '' : 'none'; badge.textContent = n; }
+}
+// Retente l'envoi de tout ce qui est resté en attente (appelée au chargement, à la reconnexion, et périodiquement)
+async function vsRetrySyncQueue(){
+  if(!sb || !vsMyUid()) return;
+  const q = vsGetQueue();
+  if(q.fiches.length){
+    for(const id of [...q.fiches]){
+      const f = collection.find(x=>String(x.id)===id);
+      if(f) await vsSyncFicheToSupabase(f); else vsQueueRemove('fiches',id);
+    }
+  }
+  if(q.socio.length){
+    for(const id of [...q.socio]){
+      const f = socioCollection.find(x=>String(x.id||x.num)===id);
+      if(f) await vsSyncSocioToSupabase(f); else vsQueueRemove('socio',id);
+    }
+  }
+}
+window.addEventListener('online', ()=>{ showToast('Connexion rétablie — synchronisation en cours…','i'); vsRetrySyncQueue(); });
+setInterval(()=>{ if(navigator.onLine) vsRetrySyncQueue(); }, 3*60*1000);
+
+// Convertit les photos base64 d'une fiche en fichiers stockés dans Supabase Storage,
+// et renvoie une copie « légère » de la fiche (URLs au lieu du base64) prête à synchroniser.
+async function vsUploadFichePhotos(fiche, uid){
+  const photos = fiche.photos || [];
+  if(!photos.length) return fiche;
+  const urls = [];
+  for(let i=0;i<photos.length;i++){
+    const dataUrl = photos[i];
+    if(!dataUrl || typeof dataUrl!=='string' || !dataUrl.startsWith('data:')){ urls.push(dataUrl); continue; }
+    try{
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const ext = (blob.type.split('/')[1]||'jpg').replace('jpeg','jpg');
+      const path = `${uid}/${fiche.id}/${i}.${ext}`;
+      const { error } = await sb.storage.from('fiche-photos').upload(path, blob, { upsert:true, contentType: blob.type||'image/jpeg' });
+      if(error) throw error;
+      const { data } = sb.storage.from('fiche-photos').getPublicUrl(path);
+      urls.push(data.publicUrl);
+    }catch(e){
+      urls.push(dataUrl); // échec d'envoi : on garde le base64 local pour ne rien perdre côté sync
+    }
+  }
+  return { ...fiche, photos: urls, imageUrl: urls[0]||fiche.imageUrl };
+}
+
 // Envoie une fiche (entomologique) vers Supabase — appelée après chaque enregistrement local
 async function vsSyncFicheToSupabase(fiche){
-  if(!sb) return;
-  const uid = vsMyUid(); if(!uid) return;
+  if(!sb){ return; }
+  const uid = vsMyUid();
+  if(!uid){ vsQueueAdd('fiches', fiche.id); return; }
   try{
-    await sb.from('fiches').upsert({ id:String(fiche.id), owner_id:uid, data:fiche, gite_positif:!!fiche.gitePositif });
-  }catch(e){ /* hors-ligne ou erreur réseau : la fiche reste enregistrée localement, on retentera plus tard */ }
+    const uploadable = await vsUploadFichePhotos(fiche, uid);
+    await sb.from('fiches').upsert({ id:String(fiche.id), owner_id:uid, data:uploadable, gite_positif:!!fiche.gitePositif });
+    vsQueueRemove('fiches', fiche.id);
+  }catch(e){
+    vsQueueAdd('fiches', fiche.id); // hors-ligne ou erreur réseau : on retentera plus tard
+  }
 }
 async function vsDeleteFicheFromSupabase(id){
   if(!sb) return;
   try{ await sb.from('fiches').delete().eq('id', String(id)); }catch(e){}
+  vsQueueRemove('fiches', id);
 }
 
 // Envoie un questionnaire socio-anthropologique vers Supabase
 async function vsSyncSocioToSupabase(fiche){
   if(!sb) return;
-  const uid = vsMyUid(); if(!uid) return;
+  const uid = vsMyUid();
+  const fid = fiche.id||fiche.num;
+  if(!uid){ vsQueueAdd('socio', fid); return; }
   try{
-    await sb.from('socio_fiches').upsert({ id:String(fiche.id||fiche.num), owner_id:uid, data:fiche });
-  }catch(e){}
+    await sb.from('socio_fiches').upsert({ id:String(fid), owner_id:uid, data:fiche });
+    vsQueueRemove('socio', fid);
+  }catch(e){ vsQueueAdd('socio', fid); }
 }
 
 // Recharge les fiches/questionnaires du compte connecté depuis Supabase (arrière-plan, non bloquant)
@@ -8278,8 +8398,96 @@ async function vsRefreshTeamData(){
       (_vsSupaSocioCache[localId] ||= []).push(r.data);
     });
     if(document.getElementById('sec-collection')?.classList.contains('active')) renderCollection();
+    if(document.getElementById('sec-supervision')?.classList.contains('active')) renderSupervision();
   }catch(e){ /* hors-ligne : la sélection d'équipe restera vide jusqu'à la prochaine tentative */ }
   finally{ _vsSupaTeamFetching = false; }
+}
+
+// ── Tableau de bord de supervision (admin) ──
+async function renderSupervision(){
+  if(!isAdminRole()) return;
+  const users = getUsers();
+  const mine = getMyCollecteurs();
+  const tbody = document.getElementById('sup-team-tbody');
+  const empty = document.getElementById('sup-empty');
+  if(!mine.length){
+    tbody.innerHTML=''; empty.style.display='';
+    document.getElementById('sup-stat-collecteurs').textContent='0';
+    document.getElementById('sup-stat-fiches').textContent = collection.length;
+    document.getElementById('sup-stat-positifs').textContent = collection.filter(f=>f.gitePositif).length;
+    document.getElementById('sup-stat-semaine').textContent = vsCountThisWeek(collection);
+    return;
+  }
+  empty.style.display='none';
+  await vsRefreshTeamData();
+
+  const now = Date.now();
+  const rows = mine.map(uid=>{
+    const fiches = _vsSupaFichesCache[uid] || [];
+    const positifs = fiches.filter(f=>f.gitePositif).length;
+    const dates = fiches.map(f=>new Date(f.date||0).getTime()).filter(t=>!isNaN(t)&&t>0);
+    const lastTs = dates.length ? Math.max(...dates) : null;
+    const daysSince = lastTs ? Math.floor((now-lastTs)/86400000) : null;
+    let statusClass='alert', statusLabel='Aucune donnée';
+    if(daysSince!==null){
+      if(daysSince<=2){ statusClass='active'; statusLabel='Actif'; }
+      else if(daysSince<=7){ statusClass='warn'; statusLabel=`Inactif ${daysSince} j`; }
+      else{ statusClass='alert'; statusLabel=`Inactif ${daysSince} j`; }
+    }
+    return { uid, name: users[uid]?.name||uid, fiches: fiches.length, positifs,
+      lastLabel: lastTs ? new Date(lastTs).toLocaleDateString('fr-FR') : '—', statusClass, statusLabel };
+  });
+
+  document.getElementById('sup-stat-collecteurs').textContent = mine.length;
+  const allTeamFiches = [...collection, ...Object.values(_vsSupaFichesCache).flat()];
+  document.getElementById('sup-stat-fiches').textContent = allTeamFiches.length;
+  document.getElementById('sup-stat-positifs').textContent = allTeamFiches.filter(f=>f.gitePositif).length;
+  document.getElementById('sup-stat-semaine').textContent = vsCountThisWeek(allTeamFiches);
+
+  tbody.innerHTML = rows.map(r=>`
+    <tr>
+      <td style="font-weight:600">${jsAttrEsc(r.name)}</td>
+      <td>${r.fiches}</td>
+      <td style="color:${r.positifs>0?'var(--danger)':'var(--muted)'}">${r.positifs}</td>
+      <td style="font-family:var(--font-mono);font-size:11.5px;color:var(--muted)">${r.lastLabel}</td>
+      <td><span class="vs-sup-status ${r.statusClass}"><i class="fa fa-circle" style="font-size:6px"></i> ${r.statusLabel}</span></td>
+    </tr>`).join('');
+}
+function vsCountThisWeek(fiches){
+  const weekAgo = Date.now()-7*86400000;
+  return fiches.filter(f=>{ const t=new Date(f.date||0).getTime(); return !isNaN(t) && t>=weekAgo; }).length;
+}
+
+// ── Temps réel : nouvelles fiches de l'équipe visibles instantanément (Supabase Realtime) ──
+let _vsRealtimeChannel = null;
+function vsSubscribeRealtime(){
+  if(!sb || !isAdminRole()) return;
+  if(_vsRealtimeChannel){ sb.removeChannel(_vsRealtimeChannel); _vsRealtimeChannel=null; }
+  const mine = getMyCollecteurs();
+  if(!mine.length) return;
+  const users = getUsers();
+  const supaIdToLocal = {};
+  mine.forEach(localId=>{ if(users[localId]?.supaUserId) supaIdToLocal[users[localId].supaUserId]=localId; });
+
+  _vsRealtimeChannel = sb.channel('vs-team-updates')
+    .on('postgres_changes', { event:'INSERT', schema:'public', table:'fiches' }, (payload)=>{
+      const localId = supaIdToLocal[payload.new.owner_id];
+      if(!localId) return; // fiche d'un collecteur qui n'est pas le mien : la RLS ne devrait de toute façon pas la transmettre
+      (_vsSupaFichesCache[localId] ||= []).unshift(payload.new.data);
+      const name = users[localId]?.name || localId;
+      showToast(`📋 Nouvelle fiche de ${name} reçue`,'i');
+      if(document.getElementById('sec-collection')?.classList.contains('active')) renderCollection();
+      if(document.getElementById('sec-supervision')?.classList.contains('active')) renderSupervision();
+      updateNavCount();
+    })
+    .on('postgres_changes', { event:'INSERT', schema:'public', table:'socio_fiches' }, (payload)=>{
+      const localId = supaIdToLocal[payload.new.owner_id];
+      if(!localId) return;
+      (_vsSupaSocioCache[localId] ||= []).unshift(payload.new.data);
+      const name = users[localId]?.name || localId;
+      showToast(`📋 Nouveau questionnaire socio de ${name} reçu`,'i');
+    })
+    .subscribe();
 }
 
 async function doRegister(){
@@ -9683,6 +9891,9 @@ function initI18n(){
     loadUserData();
     applyRoleUI();
     showApp(users[session].name || session, null);
+    vsUpdateSyncBadge();
+    vsRetrySyncQueue();
+    if(sb){ vsPullOwnDataFromSupabase(); vsSubscribeRealtime(); }
   } else {
     const remembered = getRememberedId();
     if(remembered){
