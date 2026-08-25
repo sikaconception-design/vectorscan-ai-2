@@ -1860,13 +1860,48 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
 
 <!-- ============ DATABASE ============ -->
 <section class="section" id="sec-database">
-  <div class="sec-head"><h1>Base de données</h1><p>Répertoire des arthropodes vecteurs — 17 espèces référencées</p></div>
+  <div class="sec-head" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+    <div><h1>Base de données</h1><p>Répertoire des arthropodes vecteurs — 17 espèces référencées + espèces ajoutées</p></div>
+    <button class="btn btn-primary role-admin-only" id="db-add-species-btn" style="display:none;flex-shrink:0" onclick="openSpeciesForm()"><i class="fa fa-plus"></i> Ajouter une espèce</button>
+  </div>
   <div class="db-search">
     <input type="text" id="db-search-input" placeholder="Rechercher par nom, maladie, famille..." oninput="filterDB(this.value)">
     <button class="btn btn-secondary"><i class="fa fa-filter"></i></button>
   </div>
   <div class="db-grid" id="db-grid"></div>
 </section>
+
+<!-- FORMULAIRE D'AJOUT D'ESPÈCE (admin) -->
+<div class="fiche-overlay" id="species-form-overlay" onclick="if(event.target===this)closeSpeciesForm()">
+  <div class="fiche-modal" id="species-form-modal" style="max-width:560px">
+    <div class="fiche-header">
+      <div class="fiche-header-left"><div><div class="fiche-num"><i class="fa fa-bug"></i> Nouvelle espèce</div></div></div>
+      <button class="fiche-close" onclick="closeSpeciesForm()"><i class="fa fa-times"></i></button>
+    </div>
+    <div class="fiche-body">
+      <div class="form-grid-2">
+        <div class="auth-field"><label class="auth-label">Nom commun *</label><div class="auth-input-wrap"><input class="auth-input" id="sp-name" placeholder="ex : Moustique de la fièvre jaune"></div></div>
+        <div class="auth-field"><label class="auth-label">Nom latin *</label><div class="auth-input-wrap"><input class="auth-input" id="sp-latin" placeholder="ex : Aedes aegypti"></div></div>
+        <div class="auth-field"><label class="auth-label">Ordre</label><div class="auth-input-wrap"><input class="auth-input" id="sp-order" placeholder="ex : Diptères"></div></div>
+        <div class="auth-field"><label class="auth-label">Famille</label><div class="auth-input-wrap"><input class="auth-input" id="sp-family" placeholder="ex : Culicidae"></div></div>
+        <div class="auth-field"><label class="auth-label">Région</label><div class="auth-input-wrap"><input class="auth-input" id="sp-region" placeholder="ex : Afrique de l'Ouest"></div></div>
+        <div class="auth-field"><label class="auth-label">Activité</label><div class="auth-input-wrap"><input class="auth-input" id="sp-activity" placeholder="ex : Diurne"></div></div>
+        <div class="auth-field"><label class="auth-label">Niveau de risque</label><div class="auth-input-wrap">
+          <select id="sp-risk" style="width:100%;background:transparent;border:none;padding:12px 14px;color:var(--text)">
+            <option value="high">Élevé</option><option value="med">Modéré</option><option value="low">Faible</option>
+          </select></div></div>
+        <div class="auth-field"><label class="auth-label">Icône (emoji)</label><div class="auth-input-wrap"><input class="auth-input" id="sp-icon" placeholder="🦟" maxlength="4"></div></div>
+        <div class="auth-field"><label class="auth-label">Taille</label><div class="auth-input-wrap"><input class="auth-input" id="sp-taille" placeholder="ex : 5–7 mm"></div></div>
+        <div class="auth-field"><label class="auth-label">Durée de vie</label><div class="auth-input-wrap"><input class="auth-input" id="sp-lifespan" placeholder="ex : 14–30 j"></div></div>
+      </div>
+      <div class="auth-field"><label class="auth-label">Maladies transmises (séparées par des virgules)</label><div class="auth-input-wrap"><input class="auth-input" id="sp-diseases" placeholder="ex : Dengue, Chikungunya, Zika"></div></div>
+      <div class="auth-field"><label class="auth-label">Description</label><div class="auth-input-wrap"><textarea id="sp-description" rows="3" style="width:100%;background:transparent;border:none;padding:12px 14px;color:var(--text);font-family:inherit;resize:vertical"></textarea></div></div>
+      <div class="auth-field"><label class="auth-label">Moyens de prévention (séparés par des virgules)</label><div class="auth-input-wrap"><input class="auth-input" id="sp-prevention" placeholder="ex : Moustiquaires, Répulsifs"></div></div>
+      <div class="auth-field"><label class="auth-label">Habitat</label><div class="auth-input-wrap"><input class="auth-input" id="sp-habitat" placeholder="ex : Urbain, périurbain"></div></div>
+      <button class="btn btn-primary" style="width:100%;margin-top:6px" onclick="saveSpeciesForm()"><i class="fa fa-save"></i> Enregistrer cette espèce</button>
+    </div>
+  </div>
+</div>
 
 <!-- ============ SÉQUENÇAGE ADN ============ -->
 <section class="section" id="sec-sequencing">
@@ -2311,6 +2346,16 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
       </div>
     </div>
     <button class="btn btn-primary" style="width:100%;margin-top:6px" onclick="saveProfile()"><i class="fa fa-save"></i> Enregistrer mon profil</button>
+  </div>
+
+  <div class="vs-seq-upload-card" style="margin-top:20px">
+    <div class="sec-head" style="margin:0 0 14px"><h1 style="font-size:16px"><i class="fa fa-shield-halved"></i> Sauvegarde de mes données</h1>
+      <p style="margin-top:4px">Exportez toutes vos fiches et questionnaires dans un fichier, pour les restaurer en cas de perte ou de changement de téléphone.</p></div>
+    <div class="vs-seq-actions" style="margin-top:0">
+      <button class="btn btn-secondary" onclick="vsBackupData()"><i class="fa fa-download"></i> Sauvegarder mes données</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('vs-restore-input').click()"><i class="fa fa-upload"></i> Restaurer depuis un fichier</button>
+      <input type="file" id="vs-restore-input" accept=".json" style="display:none" onchange="vsRestoreData(event)">
+    </div>
   </div>
 </section>
 
@@ -6814,13 +6859,14 @@ function deleteFiche(id){
 // ======================== DATABASE ========================
 function renderDB(query=''){
   const grid=document.getElementById('db-grid');
-  const items=query?ARTHROPODS.filter(a=>a.name.toLowerCase().includes(query.toLowerCase())||a.latin.toLowerCase().includes(query.toLowerCase())||(a.diseases||[]).some(d=>d.toLowerCase().includes(query.toLowerCase()))):ARTHROPODS;
+  const all = vsGetAllSpecies();
+  const items=query?all.filter(a=>a.name.toLowerCase().includes(query.toLowerCase())||a.latin.toLowerCase().includes(query.toLowerCase())||(a.diseases||[]).some(d=>d.toLowerCase().includes(query.toLowerCase()))):all;
   grid.innerHTML=items.map(a=>`
-    <div class="db-card" onclick="showDBDetail(${a.id})">
+    <div class="db-card" onclick="showDBDetail('${jsAttrEsc(String(a.id))}')">
       <div class="db-card-top">
-        <div><div class="db-card-name">${a.name}</div><div class="db-card-latin">${a.latin}</div><div class="db-card-family">${a.family}</div></div>
+        <div><div class="db-card-name">${a.name}${a._custom?' <span style="font-size:9px;color:var(--accent);font-family:var(--font-mono)">(ajoutée)</span>':''}</div><div class="db-card-latin">${a.latin}</div><div class="db-card-family">${a.family||''}</div></div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
-          <span style="font-size:28px">${a.icon}</span>
+          <span style="font-size:28px">${a.icon||'🦟'}</span>
           <div class="risk-badge ${a.risk==='high'?'risk-high':a.risk==='med'?'risk-med':'risk-low'}" style="font-size:10px;padding:3px 8px">${a.risk==='high'?'ÉLEVÉ':a.risk==='med'?'MODÉRÉ':'FAIBLE'}</div>
         </div>
       </div>
@@ -6831,8 +6877,69 @@ function renderDB(query=''){
   `).join('');
 }
 function filterDB(q){renderDB(q);}
-function showDBDetail(id){const a=ARTHROPODS.find(x=>x.id===id);if(!a)return;showDBDetailData(a);}
+function showDBDetail(id){const a=vsGetAllSpecies().find(x=>String(x.id)===String(id));if(!a)return;showDBDetailData(a);}
 function showDBDetailById(id){if(id){showDBDetail(id);return;}if(currentResult)showDBDetailData(currentResult);}
+
+// ── Espèces ajoutées par un administrateur (partagées entre appareils via Supabase) ──
+let _vsCustomSpecies = [];
+function vsGetAllSpecies(){ return [...ARTHROPODS, ..._vsCustomSpecies]; }
+
+function vsLoadCustomSpeciesLocal(){
+  try{ _vsCustomSpecies = JSON.parse(localStorage.getItem('vs_custom_species')||'[]'); }catch(e){ _vsCustomSpecies=[]; }
+}
+async function vsLoadCustomSpecies(){
+  vsLoadCustomSpeciesLocal();
+  if(!sb) return;
+  try{
+    const { data } = await sb.from('custom_species').select('id,data');
+    if(data){
+      _vsCustomSpecies = data.map(r=>({ ...r.data, id:r.id, _custom:true }));
+      localStorage.setItem('vs_custom_species', JSON.stringify(_vsCustomSpecies));
+    }
+  }catch(e){ /* hors-ligne : on garde la copie locale déjà chargée */ }
+  if(document.getElementById('sec-database')?.classList.contains('active')) renderDB(document.getElementById('db-search-input')?.value||'');
+}
+
+function openSpeciesForm(){
+  if(!isAdminRole()){ showToast('Réservé aux administrateurs','w'); return; }
+  ['sp-name','sp-latin','sp-order','sp-family','sp-region','sp-activity','sp-icon','sp-taille','sp-lifespan','sp-diseases','sp-description','sp-prevention','sp-habitat'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
+  document.getElementById('sp-risk').value='high';
+  document.getElementById('species-form-overlay').classList.add('open');
+}
+function closeSpeciesForm(){ document.getElementById('species-form-overlay').classList.remove('open'); }
+
+async function saveSpeciesForm(){
+  const name=document.getElementById('sp-name').value.trim();
+  const latin=document.getElementById('sp-latin').value.trim();
+  if(!name||!latin){ showToast('Le nom commun et le nom latin sont requis','w'); return; }
+  const splitCsv = s => s.split(',').map(x=>x.trim()).filter(Boolean);
+  const species = {
+    id: `custom_${Date.now()}`,
+    name, latin,
+    order: document.getElementById('sp-order').value.trim(),
+    family: document.getElementById('sp-family').value.trim(),
+    region: document.getElementById('sp-region').value.trim(),
+    activity: document.getElementById('sp-activity').value.trim(),
+    risk: document.getElementById('sp-risk').value,
+    icon: document.getElementById('sp-icon').value.trim() || '🦟',
+    taille: document.getElementById('sp-taille').value.trim(),
+    lifespan: document.getElementById('sp-lifespan').value.trim(),
+    diseases: splitCsv(document.getElementById('sp-diseases').value),
+    description: document.getElementById('sp-description').value.trim(),
+    prevention: splitCsv(document.getElementById('sp-prevention').value),
+    habitat: document.getElementById('sp-habitat').value.trim(),
+    _custom: true
+  };
+  _vsCustomSpecies.push(species);
+  localStorage.setItem('vs_custom_species', JSON.stringify(_vsCustomSpecies));
+  if(sb){
+    try{ await sb.from('custom_species').upsert({ id:species.id, data:species, created_by:vsMyUid() }); }
+    catch(e){ showToast('Enregistrée localement — sera synchronisée dès que possible','i'); }
+  }
+  closeSpeciesForm();
+  renderDB();
+  showToast(`Espèce « ${name} » ajoutée à la base de données`,'s');
+}
 function showDBDetailData(a){
   document.getElementById('modal-title').textContent=`${a.name} — ${a.latin||''}`;
   document.getElementById('modal-body').innerHTML=`
@@ -7810,6 +7917,62 @@ function saveProfile(){
   showToast('Profil enregistré','s');
 }
 
+// ── Sauvegarde / restauration complète des données locales de l'utilisateur ──
+function vsBackupData(){
+  const me = getSession();
+  if(!me){ showToast('Veuillez vous connecter','w'); return; }
+  const users = getUsers();
+  const payload = {
+    app: 'VectorScan AI', backupVersion: 1,
+    exportedAt: new Date().toISOString(),
+    account: me, accountName: users[me]?.name || me,
+    fiches: collection, ficheCounter,
+    socio: socioCollection, socioCounter
+  };
+  const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/octet-stream'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download=`Sauvegarde_VectorScan_${me}_${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast(`Sauvegarde téléchargée : ${collection.length} fiche(s), ${socioCollection.length} questionnaire(s)`,'s');
+}
+
+function vsRestoreData(event){
+  const file = event.target.files?.[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    let payload;
+    try{ payload = JSON.parse(e.target.result); }
+    catch(err){ showToast('Fichier de sauvegarde invalide','w'); return; }
+    if(payload.app !== 'VectorScan AI' || !Array.isArray(payload.fiches)){
+      showToast('Ce fichier ne semble pas être une sauvegarde VectorScan AI valide','w'); return;
+    }
+    if(!confirm(`Restaurer ${payload.fiches.length} fiche(s) et ${(payload.socio||[]).length} questionnaire(s) depuis cette sauvegarde ?\nLes fiches déjà présentes sur cet appareil seront conservées ; seules les fiches manquantes seront ajoutées.`)) return;
+
+    const existingFicheIds = new Set(collection.map(f=>String(f.id)));
+    const newFiches = payload.fiches.filter(f=>!existingFicheIds.has(String(f.id)));
+    collection = [...newFiches, ...collection];
+    localStorage.setItem(skey('vs_collection'), JSON.stringify(collection));
+    if(payload.ficheCounter > ficheCounter){ ficheCounter = payload.ficheCounter; localStorage.setItem(skey('vs_counter'), ficheCounter); }
+    newFiches.forEach(f=>vsSyncFicheToSupabase(f));
+
+    const existingSocioIds = new Set(socioCollection.map(f=>String(f.id||f.num)));
+    const newSocio = (payload.socio||[]).filter(f=>!existingSocioIds.has(String(f.id||f.num)));
+    socioCollection = [...newSocio, ...socioCollection];
+    saveSocioStorage();
+    newSocio.forEach(f=>vsSyncSocioToSupabase(f));
+
+    updateNavCount();
+    if(document.getElementById('sec-collection')?.classList.contains('active')) renderCollection();
+    showToast(`Restauration terminée : ${newFiches.length} fiche(s) et ${newSocio.length} questionnaire(s) ajoutés`,'s');
+    event.target.value='';
+  };
+  reader.onerror = ()=>showToast('Impossible de lire ce fichier','w');
+  reader.readAsText(file);
+}
+
 // ── Panneau d'administration des comptes (visible uniquement par un administrateur) ──
 function renderUsersAdmin(){
   const body=document.getElementById('users-admin-body');
@@ -7877,8 +8040,16 @@ function changeUserRoleAdmin(id, newRole){
   users[id].role=newRole;
   if(newRole==='admin' && !users[id].referralCode){ users[id].referralCode = generateReferralCode(users); }
   saveUsers(users);
+  vsSyncRoleChangeToSupabase(users[id].supaUserId, newRole);
   showToast(`Rôle de ${users[id].name||id} mis à jour : ${ROLE_LABELS[newRole]}`,'s');
   renderUsersAdmin();
+}
+// Répercute un changement de rôle vers Supabase (le déclencheur côté serveur vérifie
+// que c'est bien un administrateur qui fait la demande — voir setup_supabase_part3_security.sql)
+async function vsSyncRoleChangeToSupabase(targetSupaUserId, newRole){
+  if(!sb || !targetSupaUserId) return;
+  try{ await sb.from('profiles').update({ role:newRole }).eq('id', targetSupaUserId); }
+  catch(e){ /* sera repris à la prochaine connexion via vsSyncProfileToSupabase si c'est son propre compte */ }
 }
 function deleteUserAdmin(id){
   if(!isAdminRole()) return;
@@ -8177,6 +8348,7 @@ async function doLogin(){
   vsRetrySyncQueue();
   vsUpdateSyncBadge();
   vsSubscribeRealtime();
+  vsLoadCustomSpecies();
   const rememberPassEl = document.getElementById('login-remember-pass');
   if(rememberPassEl && rememberPassEl.checked){ rememberPass(pass); }
   else{ clearRememberedPass(); }
@@ -8214,6 +8386,7 @@ async function doVerifyOtp(){
     vsRetrySyncQueue();
     vsUpdateSyncBadge();
     vsSubscribeRealtime();
+    vsLoadCustomSpecies();
     showApp(users[user].name || user, 'welcome');
     if(users[user].role === 'admin' && users[user].referralCode){
       setTimeout(()=>{ showToast(`Compte Administrateur — votre code de parrainage : ${users[user].referralCode}`, 's'); }, 900);
@@ -10109,7 +10282,7 @@ function initI18n(){
     showApp(users[session].name || session, null);
     vsUpdateSyncBadge();
     vsRetrySyncQueue();
-    if(sb){ vsPullOwnDataFromSupabase(); vsSubscribeRealtime(); }
+    if(sb){ vsPullOwnDataFromSupabase(); vsSubscribeRealtime(); vsLoadCustomSpecies(); } else { vsLoadCustomSpeciesLocal(); }
   } else {
     const remembered = getRememberedId();
     if(remembered){
