@@ -835,6 +835,14 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
 }
 .offline-banner.show{display:block}
 
+/* Sélecteur de source IA : forfait organisation vs clé personnelle */
+.vs-ai-source-toggle{display:flex;gap:6px;flex-wrap:wrap}
+.vs-ai-source-btn{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:16px;
+  border:1px solid var(--border);background:var(--bg3);color:var(--muted);cursor:pointer;
+  font-family:var(--font-mono);font-size:10.5px;font-weight:600;transition:all .15s}
+.vs-ai-source-btn:hover{border-color:var(--info)}
+.vs-ai-source-btn.active{background:var(--info);border-color:var(--info);color:#fff}
+
 /* SECURITY BADGE */
 .security-badge{
   display:inline-flex;align-items:center;gap:6px;
@@ -1630,18 +1638,30 @@ main{padding:80px 24px 60px;max-width:1200px;margin:0 auto;position:relative;z-i
   </div>
 
   <!-- Bandeau clé API -->
-  <!-- Bandeau clé API -->
-  <div id="api-key-bar" style="background:rgba(0,180,216,.07);border:1px solid rgba(0,180,216,.25);border-radius:10px;padding:10px 16px;margin-bottom:18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-    <i class="fa fa-key" style="color:var(--info);font-size:14px;flex-shrink:0"></i>
-    <span style="font-size:11px;color:var(--muted);font-family:var(--font-mono);white-space:nowrap">Clé API Anthropic</span>
-    <input id="api-key-input" type="password" placeholder="sk-ant-api03-..." autocomplete="off"
-      style="flex:1;min-width:200px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:7px 12px;color:var(--text);font-family:var(--font-mono);font-size:12px;outline:none;transition:border-color .2s"
-      oninput="saveApiKey(this.value)" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
-    <span id="api-key-status" style="font-size:11px;font-family:var(--font-mono);color:var(--muted);white-space:nowrap">Non configurée</span>
-    <span class="security-badge"><i class="fa fa-shield-alt"></i> Session uniquement</span>
-    <a href="https://console.anthropic.com/settings/keys" target="_blank"
-      style="font-size:10px;color:var(--info);font-family:var(--font-mono);text-decoration:none;white-space:nowrap;opacity:.8">
-      Obtenir une clé →</a>
+  <div id="api-key-bar" style="background:rgba(0,180,216,.07);border:1px solid rgba(0,180,216,.25);border-radius:10px;padding:10px 16px;margin-bottom:18px;display:flex;flex-direction:column;gap:10px">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <i class="fa fa-robot" style="color:var(--info);font-size:14px;flex-shrink:0"></i>
+      <span style="font-size:11px;color:var(--muted);font-family:var(--font-mono);white-space:nowrap">Analyse IA via</span>
+      <div class="vs-ai-source-toggle">
+        <button class="vs-ai-source-btn active" id="vs-ai-source-org-btn" onclick="vsSetAiSource('org')"><i class="fa fa-building"></i> Forfait de mon organisation</button>
+        <button class="vs-ai-source-btn" id="vs-ai-source-own-btn" onclick="vsSetAiSource('own')"><i class="fa fa-key"></i> Ma propre clé API</button>
+      </div>
+    </div>
+    <div id="api-key-own-row" style="display:none;align-items:center;gap:10px;flex-wrap:wrap">
+      <i class="fa fa-key" style="color:var(--info);font-size:14px;flex-shrink:0"></i>
+      <span style="font-size:11px;color:var(--muted);font-family:var(--font-mono);white-space:nowrap">Clé API Anthropic</span>
+      <input id="api-key-input" type="password" placeholder="sk-ant-api03-..." autocomplete="off"
+        style="flex:1;min-width:200px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:7px 12px;color:var(--text);font-family:var(--font-mono);font-size:12px;outline:none;transition:border-color .2s"
+        oninput="saveApiKey(this.value)" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+      <span id="api-key-status" style="font-size:11px;font-family:var(--font-mono);color:var(--muted);white-space:nowrap">Non configurée</span>
+      <span class="security-badge"><i class="fa fa-shield-alt"></i> Session uniquement</span>
+      <a href="https://console.anthropic.com/settings/keys" target="_blank"
+        style="font-size:10px;color:var(--info);font-family:var(--font-mono);text-decoration:none;white-space:nowrap;opacity:.8">
+        Obtenir une clé →</a>
+    </div>
+    <div id="api-key-org-row" style="font-size:10.5px;color:var(--muted);font-family:var(--font-mono);line-height:1.4">
+      <i class="fa fa-circle-info"></i> Les scans effectués via le forfait de l'organisation comptent dans le quota affiché sur la page Facturation.
+    </div>
   </div>
   <div class="scanner-hero">
     <div class="scan-area">
@@ -5337,7 +5357,7 @@ async function runScan(){
     showToast('Veuillez charger une image ou activer la caméra avant d\'analyser','i');
     return;
   }
-  if(!(await vsCheckScanQuota())) return;
+  if(vsGetAiSource()==='org' && !(await vsCheckScanQuota())) return;
 
   isAnalyzing=true;
   document.getElementById('scan-frame').classList.add('scanning');
@@ -5440,7 +5460,8 @@ async function runScan(){
       });
       if(parsed.specimens && parsed.specimens[0]) parsed.dbId=parsed.specimens[0].dbId;
       addToScanHistory(imgHash, 'data:'+mimeType+';base64,'+b64, mimeType, parsed);
-      vsRecordScanUsage();
+      // Le comptage du quota se fait désormais côté serveur (fonction proxy-scan), uniquement
+      // quand le forfait de l'organisation est utilisé — pas quand la clé personnelle est utilisée.
     }
     displayResult(parsed);
   }catch(err){
@@ -5645,11 +5666,17 @@ function closePhotoLightbox(){
 }
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closePhotoLightbox(); });
 
+// ── Source de l'IA : forfait de l'organisation (via serveur sécurisé) ou clé personnelle ──
+function vsGetAiSource(){ return localStorage.getItem(skey('vs_ai_source')) || 'org'; }
+function vsSetAiSource(mode){
+  localStorage.setItem(skey('vs_ai_source'), mode);
+  document.getElementById('vs-ai-source-org-btn').classList.toggle('active', mode==='org');
+  document.getElementById('vs-ai-source-own-btn').classList.toggle('active', mode==='own');
+  document.getElementById('api-key-own-row').style.display = mode==='own' ? 'flex' : 'none';
+  document.getElementById('api-key-org-row').style.display = mode==='org' ? 'block' : 'none';
+}
+
 async function callClaudeAPI(b64, mimeType){
-  const apiKey = localStorage.getItem('vs_api_key') || sessionStorage.getItem('vs_api_key') || '';
-  if (!apiKey || !apiKey.startsWith('sk-ant-')) {
-    throw new Error('Clé API manquante. Entrez votre clé sk-ant-... dans le bandeau en haut.');
-  }
   const collectorName = document.getElementById('f-collector')?.value?.trim() || localStorage.getItem(skey('vs_last_collector')) || 'l\'équipe de terrain';
   const prompt = buildScanPrompt(currentScanMode || 'adulte', collectorName);
   const body = {
@@ -5664,26 +5691,49 @@ async function callClaudeAPI(b64, mimeType){
     }]
   };
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "anthropic-dangerous-direct-browser-access": "true"
-    },
-    body: JSON.stringify(body)
-  });
-
-  if (!response.ok) {
-    const errData = await response.json().catch(() => ({}));
-    const status = response.status;
-    if (status === 401) throw new Error("Clé API invalide ou expirée. Vérifiez votre clé Anthropic.");
-    if (status === 429) throw new Error("Limite de requêtes atteinte. Patientez quelques secondes.");
-    throw new Error(errData.error?.message || "Erreur API " + status);
+  let data;
+  if(vsGetAiSource()==='own'){
+    const apiKey = localStorage.getItem('vs_api_key') || sessionStorage.getItem('vs_api_key') || '';
+    if (!apiKey || !apiKey.startsWith('sk-ant-')) {
+      throw new Error('Clé API manquante. Entrez votre clé sk-ant-... dans le bandeau en haut, ou basculez sur « Forfait de mon organisation ».');
+    }
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify(body)
+    });
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      const status = response.status;
+      if (status === 401) throw new Error("Clé API invalide ou expirée. Vérifiez votre clé Anthropic.");
+      if (status === 429) throw new Error("Limite de requêtes atteinte. Patientez quelques secondes.");
+      throw new Error(errData.error?.message || "Erreur API " + status);
+    }
+    data = await response.json();
+  } else {
+    // Passe par le serveur sécurisé (fonction Supabase) qui utilise la clé API de l'organisation —
+    // jamais exposée dans le navigateur, comme pour le paiement.
+    if(!sb){ throw new Error("Supabase non configuré : impossible d'utiliser le forfait de l'organisation. Basculez sur « Ma propre clé API »."); }
+    const { data: sessionData } = await sb.auth.getSession();
+    const token = sessionData?.session?.access_token;
+    if(!token){ throw new Error('Session expirée — reconnectez-vous.'); }
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/proxy-scan`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+      body: JSON.stringify(body)
+    });
+    const respData = await response.json().catch(()=>({}));
+    if (!response.ok) {
+      throw new Error(respData.error || "Erreur du service d'analyse IA de l'organisation.");
+    }
+    data = respData;
   }
 
-  const data = await response.json();
   const rawText = (data.content || []).map(b => b.text || '').join('').trim();
   if (!rawText) throw new Error("Réponse vide de l'IA.");
 
@@ -9588,6 +9638,7 @@ function initApiKey(){
     const ok=saved.startsWith('sk-ant-');
     if(el){ el.textContent=ok?'✓ Clé configurée (session)':'⚠ Format incorrect'; el.style.color=ok?'var(--accent)':'var(--warn)'; }
   }
+  vsSetAiSource(vsGetAiSource());
 }
 
 // ======================== EXPORT CSV / JSON / PRINT ========================
