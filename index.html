@@ -5724,7 +5724,7 @@ async function callClaudeAPI(b64, mimeType){
     if(!token){ throw new Error('Session expirée — reconnectez-vous.'); }
     const response = await fetch(`${SUPABASE_URL}/functions/v1/proxy-scan`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}`, "apikey": SUPABASE_ANON_KEY },
       body: JSON.stringify(body)
     });
     const respData = await response.json().catch(()=>({}));
@@ -9122,7 +9122,7 @@ async function vsInitiatePayment(){
   try{
     const res = await fetch(`${SUPABASE_URL}/functions/v1/create-payment`, {
       method:'POST',
-      headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` },
+      headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${token}`, 'apikey': SUPABASE_ANON_KEY },
       body: JSON.stringify({
         amount,
         description: `VectorScan AI — +${buyUsers} utilisateur(s), +${buyTiers} tranche(s) de scans`,
