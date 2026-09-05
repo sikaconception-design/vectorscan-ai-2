@@ -5716,15 +5716,15 @@ async function callClaudeAPI(b64, mimeType){
     }
     data = await response.json();
   } else {
-    // Passe par le serveur sécurisé (fonction Supabase) qui utilise la clé API de l'organisation —
-    // jamais exposée dans le navigateur, comme pour le paiement.
+    // Passe par le serveur sécurisé (fonction hébergée sur Vercel, comme le reste du site) qui utilise
+    // la clé API de l'organisation — jamais exposée dans le navigateur, comme pour le paiement.
     if(!sb){ throw new Error("Supabase non configuré : impossible d'utiliser le forfait de l'organisation. Basculez sur « Ma propre clé API »."); }
     const { data: sessionData } = await sb.auth.getSession();
     const token = sessionData?.session?.access_token;
     if(!token){ throw new Error('Session expirée — reconnectez-vous.'); }
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/proxy-scan`, {
+    const response = await fetch(`/api/proxy-scan`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}`, "apikey": SUPABASE_ANON_KEY },
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
       body: JSON.stringify(body)
     });
     const respData = await response.json().catch(()=>({}));
@@ -9120,9 +9120,9 @@ async function vsInitiatePayment(){
 
   showToast('Redirection vers le paiement…','i');
   try{
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/create-payment`, {
+    const res = await fetch(`/api/create-payment`, {
       method:'POST',
-      headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${token}`, 'apikey': SUPABASE_ANON_KEY },
+      headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${token}` },
       body: JSON.stringify({
         amount,
         description: `VectorScan AI — +${buyUsers} utilisateur(s), +${buyTiers} tranche(s) de scans`,
