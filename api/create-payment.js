@@ -67,7 +67,7 @@ export default async function handler(req, res) {
       successUrl: `${APP_URL}/`,
       failedUrl: `${APP_URL}/`,
       notifyUrl: `${APP_URL}/api/cinetpay-notify`,
-      channel: 'ALL',
+      channel: 'PUSH',
     }, 'CI');
 
     if (!payment?.paymentUrl) {
