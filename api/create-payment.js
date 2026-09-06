@@ -72,6 +72,8 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ payment_url: cinetpayData.data.payment_url });
   } catch (e) {
-    return res.status(500).json({ error: String(e?.message || e) });
+    const detail = e?.cause?.message || e?.cause?.code || e?.message || String(e);
+    console.error('ERREUR create-payment:', e);
+    return res.status(500).json({ error: 'Erreur serveur : ' + detail });
   }
 }
