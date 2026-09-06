@@ -1,8 +1,10 @@
 // Vercel Serverless Function : /api/create-payment
-// Crée une demande de paiement CinetPay et renvoie le lien de paiement au navigateur.
-// La clé secrète CinetPay ne quitte JAMAIS ce serveur.
+// Crée une demande de paiement CinetPay (nouvelle plateforme officielle "cinetpay-js")
+// et renvoie le lien de paiement au navigateur.
+// Les identifiants CinetPay ne quittent JAMAIS ce serveur.
 
 import { createClient } from '@supabase/supabase-js';
+import { CinetPayClient } from 'cinetpay-js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -12,8 +14,6 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Méthode non autorisée' });
 
   try {
-    const CINETPAY_APIKEY = process.env.CINETPAY_APIKEY;
-    const CINETPAY_SITE_ID = process.env.CINETPAY_SITE_ID;
     const SUPABASE_URL = process.env.SUPABASE_URL;
     const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
     const APP_URL = process.env.APP_URL || 'https://vectorscan-ai-2.vercel.app';
@@ -46,31 +46,35 @@ export default async function handler(req, res) {
       org_id: org.id, amount, description: JSON.stringify(purchase), status: 'pending', cinetpay_transaction_id: transactionId,
     });
 
-    const cinetpayRes = await fetch('https://api-checkout.cinetpay.com/v2/payment', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        apikey: CINETPAY_APIKEY,
-        site_id: CINETPAY_SITE_ID,
-        transaction_id: transactionId,
-        amount: Math.round(amount),
-        currency: 'XOF',
-        description: humanDescription,
-        customer_name: userData.user.user_metadata?.name || 'Client',
-        customer_surname: 'VectorScan',
-        notify_url: `${APP_URL}/api/cinetpay-notify`,
-        return_url: `${APP_URL}/`,
-        channels: 'ALL',
-        metadata: org.id,
-      }),
+    const cinetpay = new CinetPayClient({
+      credentials: {
+        CI: {
+          apiKey: process.env.CINETPAY_API_KEY,
+          apiPassword: process.env.CINETPAY_API_PASSWORD,
+        },
+      },
     });
-    const cinetpayData = await cinetpayRes.json();
 
-    if (cinetpayData.code !== '201') {
-      return res.status(400).json({ error: cinetpayData.description || 'Échec de la création du paiement' });
+    const payment = await cinetpay.payment.initialize({
+      currency: 'XOF',
+      merchantTransactionId: transactionId,
+      amount: Math.round(amount),
+      lang: 'fr',
+      designation: humanDescription,
+      clientEmail: userData.user.email || 'client@vectorscan.app',
+      clientFirstName: userData.user.user_metadata?.name || 'Client',
+      clientLastName: 'VectorScan',
+      successUrl: `${APP_URL}/`,
+      failedUrl: `${APP_URL}/`,
+      notifyUrl: `${APP_URL}/api/cinetpay-notify`,
+      channel: 'ALL',
+    }, 'CI');
+
+    if (!payment?.paymentUrl) {
+      return res.status(400).json({ error: 'CinetPay n\'a pas renvoyé de lien de paiement' });
     }
 
-    return res.status(200).json({ payment_url: cinetpayData.data.payment_url });
+    return res.status(200).json({ payment_url: payment.paymentUrl });
   } catch (e) {
     const detail = e?.cause?.message || e?.cause?.code || e?.message || String(e);
     console.error('ERREUR create-payment:', e);
